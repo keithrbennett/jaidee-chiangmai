@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useI18n } from '../i18n'
 import { CATEGORIES } from '../lib/categories'
 import type { LatLng } from '../lib/geo'
+import { href } from '../lib/router'
 import type { Category, Need } from '../types'
 
 /** Shape returned by POST /api/translate-need (see server/index.js). */
@@ -26,31 +28,30 @@ interface Props {
 }
 
 export function PostNeed({ mapCenter, onAdd }: Props) {
+  const { m } = useI18n()
   const [text, setText] = useState('')
   const [draft, setDraft] = useState<NeedDraft | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [added, setAdded] = useState(false)
+  const [addedId, setAddedId] = useState<string | null>(null)
 
   async function generate() {
     setLoading(true)
     setError(null)
     setDraft(null)
-    setAdded(false)
+    setAddedId(null)
     try {
       const res = await fetch('/api/translate-need', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       })
-      const body = await res.json().catch(() => ({ error: `Server returned ${res.status}` }))
-      if (!res.ok) throw new Error(body.error ?? `Server returned ${res.status}`)
+      const body = await res.json().catch(() => ({ error: m.post.serverError(res.status) }))
+      if (!res.ok) throw new Error(body.error ?? m.post.serverError(res.status))
       setDraft(body as NeedDraft)
     } catch (e) {
       setError(
-        e instanceof TypeError
-          ? 'Could not reach the API server. Is `npm run dev` running (it starts both web and API)?'
-          : (e as Error).message,
+        e instanceof TypeError ? m.post.apiUnreachable : (e as Error).message,
       )
     } finally {
       setLoading(false)
@@ -59,16 +60,17 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
 
   function addToMap() {
     if (!draft) return
+    const id = `posted-${Date.now()}`
     onAdd({
-      id: `posted-${Date.now()}`,
+      id,
       title: { en: draft.title_en, th: draft.title_th },
       description: { en: draft.description_en, th: draft.description_th },
       category: draft.category,
       modes: ['normal', 'haze', 'flood'],
       lat: mapCenter.lat,
       lng: mapCenter.lng,
-      place: draft.place || 'Location to be confirmed',
-      partner: 'You (demo partner)',
+      place: draft.place || m.post.placeTbc,
+      partner: m.post.demoPartner,
       verifiedBy: '',
       verifiedDaysAgo: 0,
       hostContact: '—',
@@ -77,24 +79,21 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
       spotsTotal: draft.spots_total,
       spotsTaken: 0,
     })
-    setAdded(true)
+    setAddedId(id)
   }
 
   return (
     <div className="flex flex-col gap-3 p-4">
       <div>
-        <h2 className="text-lg font-bold">โพสต์ความต้องการ · Post a need</h2>
-        <p className="text-sm text-slate-600">
-          พิมพ์หรือพูดเป็นภาษาไทยได้เลย Claude จะร่างการ์ดงานภาษาไทย/อังกฤษให้ · Write in Thai the way you'd post in LINE.
-          Claude drafts a bilingual job card for you to check.
-        </p>
+        <h2 className="text-lg font-bold">{m.post.title}</h2>
+        <p className="text-sm text-slate-600">{m.post.intro}</p>
       </div>
 
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={6}
-        placeholder="เช่น ต้องการอาสา 5 คน ช่วยทาสีห้องเรียน วันเสาร์นี้..."
+        placeholder={m.post.placeholder}
         className="rounded-lg border border-slate-300 p-2 text-sm"
       />
       <div className="flex gap-2">
@@ -102,14 +101,14 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
           onClick={() => setText(SAMPLE_TH)}
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
         >
-          Use sample (ครูน้อย)
+          {m.post.useSample}
         </button>
         <button
           onClick={generate}
           disabled={loading || text.trim().length < 10}
           className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
-          {loading ? 'Claude is drafting…' : '✨ Draft job card with Claude'}
+          {loading ? m.post.drafting : m.post.draft}
         </button>
       </div>
 
@@ -122,7 +121,7 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
               className="rounded-full px-2 py-0.5 text-white"
               style={{ background: CATEGORIES[draft.category]?.color ?? '#64748b' }}
             >
-              {CATEGORIES[draft.category]?.emoji} {CATEGORIES[draft.category]?.label.en ?? draft.category}
+              {CATEGORIES[draft.category]?.emoji} {m.categories[draft.category] ?? draft.category}
             </span>
           </div>
           <h3 className="text-lg font-bold">{draft.title_en}</h3>
@@ -130,30 +129,33 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
           <p className="mt-2 text-sm">{draft.description_en}</p>
           <p className="mt-1 text-sm text-slate-500">{draft.description_th}</p>
           <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 text-sm">
-            <dt className="text-slate-500">Where</dt>
+            <dt className="text-slate-500">{m.post.where}</dt>
             <dd>{draft.place || '—'}</dd>
-            <dt className="text-slate-500">When</dt>
+            <dt className="text-slate-500">{m.post.when}</dt>
             <dd>
-              {draft.slot_label} ({draft.hours} h)
+              {draft.slot_label} ({m.detail.hours(draft.hours)})
             </dd>
-            <dt className="text-slate-500">Volunteers</dt>
+            <dt className="text-slate-500">{m.post.volunteers}</dt>
             <dd>{draft.spots_total}</dd>
-            <dt className="text-slate-500">Skills</dt>
+            <dt className="text-slate-500">{m.post.skills}</dt>
             <dd>{draft.skills.join(', ')}</dd>
           </dl>
           <p className="mt-2 text-xs text-slate-500">
-            Safety rules for this category are added automatically. The need stays “pending” until a partner verifies it.
+            {m.post.draftNote}
           </p>
-          {added ? (
+          {addedId ? (
             <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-800">
-              ✅ Added to the map at the current map centre as <b>pending verification</b>. Switch to “Find a need” to see it.
+              ✅ {m.post.added}{' '}
+              <a href={href({ name: 'need', id: addedId })} className="font-semibold underline">
+                {m.post.seeIt}
+              </a>
             </div>
           ) : (
             <button
               onClick={addToMap}
               className="mt-3 w-full rounded-lg bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-700"
             >
-              Looks right → add to map (pending verification)
+              {m.post.addToMap}
             </button>
           )}
         </div>

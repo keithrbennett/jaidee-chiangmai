@@ -1,6 +1,7 @@
 import L from 'leaflet'
 import { useEffect } from 'react'
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import { useI18n } from '../i18n'
 import { CATEGORIES } from '../lib/categories'
 import { CHIANG_MAI_CENTER, type LatLng } from '../lib/geo'
 import type { Need } from '../types'
@@ -28,8 +29,21 @@ function pinIcon(need: Need, selected: boolean) {
 function MapController({ selected, onCenterChange }: { selected?: Need; onCenterChange?: (c: LatLng) => void }) {
   const map = useMap()
   useEffect(() => {
-    if (selected) map.flyTo([selected.lat, selected.lng], Math.max(map.getZoom(), 14), { duration: 0.6 })
+    if (!selected) return
+    // The map may have just been un-hidden (phones): measure first, and don't animate from a 0×0 size.
+    map.invalidateSize()
+    const target: [number, number] = [selected.lat, selected.lng]
+    const zoom = Math.max(map.getZoom(), 14)
+    const { x, y } = map.getSize()
+    if (x === 0 || y === 0) map.setView(target, zoom, { animate: false })
+    else map.flyTo(target, zoom, { duration: 0.6 })
   }, [map, selected])
+  // Leaflet measures its container once; re-measure when it changes size or is shown again (phones hide the map on some tabs).
+  useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize())
+    observer.observe(map.getContainer())
+    return () => observer.disconnect()
+  }, [map])
   useEffect(() => {
     if (!onCenterChange) return
     const report = () => onCenterChange(map.getCenter())
@@ -43,6 +57,7 @@ function MapController({ selected, onCenterChange }: { selected?: Need; onCenter
 }
 
 export function NeedMap({ needs, selectedId, onSelect, userLocation, onCenterChange }: Props) {
+  const { m } = useI18n()
   const selected = needs.find((n) => n.id === selectedId)
   return (
     <MapContainer center={[CHIANG_MAI_CENTER.lat, CHIANG_MAI_CENTER.lng]} zoom={13} className="h-full w-full">
@@ -55,7 +70,7 @@ export function NeedMap({ needs, selectedId, onSelect, userLocation, onCenterCha
         radius={8}
         pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.9 }}
       >
-        <Tooltip>You are here</Tooltip>
+        <Tooltip>{m.map.youAreHere}</Tooltip>
       </CircleMarker>
       {needs.map((n) => (
         <Marker

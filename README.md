@@ -34,7 +34,11 @@ Everything except "Draft job card with Claude" works without an API key. If you 
 | **My tasks** | Your commitments, check-in codes, cancel, and a pledged-hours impact receipt. |
 | **Partner: post a need** | Paste Thai text as you'd write it in LINE → Claude drafts a bilingual job card → add it to the map as *pending verification* (volunteers can't join until a partner verifies). |
 
-State (mode, commitments, posted needs) lives in `localStorage`. There is no database. To reset, clear site data in the browser.
+Every screen has its own URL (hash routes, so no server config is needed): `#/` list + map, `#/?cat=school` filtered list, `#/need/<id>` one need (with a Share button), `#/tasks`, `#/post`, `#/about` (how it works). The browser back button works, and opening a need link switches to the mode it belongs to. On phones the tabs move to a bottom bar.
+
+The interface is available in ไทย, English and 简体中文 (flag menu in the header; defaults to the browser language, remembered in `localStorage`). UI text lives in `src/i18n/` (`en.ts` is the source; `th.ts` and `zh.ts` must have every key or the build fails). The sample needs are content and are not translated yet.
+
+State (mode, language, commitments, posted needs) lives in `localStorage`. There is no database. To reset, clear site data in the browser.
 
 ## Stack
 
@@ -47,10 +51,12 @@ State (mode, commitments, posted needs) lives in `localStorage`. There is no dat
 ```
 src/
   App.tsx                 state, filtering, sorting, layout
+  lib/router.ts           hash routes (#/need/<id>, #/tasks, …)
+  i18n/                   UI text: en.ts (source), th.ts, zh.ts + useI18n()
   data/needs.ts           seed needs (edit here to change the demo)
-  lib/categories.ts       category colours, emoji, auto safety rules, 14-day TTL
+  lib/categories.ts       category colours, emoji, 14-day TTL (names + safety rules are in i18n/)
   lib/needs.ts            verification / spots helpers
-  components/             Header, NeedMap, NeedList, NeedDetail, MyTasks, PostNeed
+  components/             Header (+ mobile BottomNav), NeedMap, NeedList, NeedDetail, MyTasks, PostNeed, About
 server/index.js           Claude endpoint + serves dist/ in production
 ```
 

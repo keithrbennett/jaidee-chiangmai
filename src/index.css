@@ -9,7 +9,7 @@ body,
 
 body {
   margin: 0;
-  font-family: system-ui, 'Noto Sans Thai', sans-serif;
+  font-family: system-ui, 'Noto Sans Thai', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
 }
 
 /* Emoji map pins rendered with L.divIcon */
