@@ -90,6 +90,15 @@ if (existsSync(dist)) {
   app.get('/{*path}', (_req, res) => res.sendFile('index.html', { root: dist }))
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, (err) => {
+  // Express 5 passes listen errors (e.g. EADDRINUSE) here instead of throwing.
+  if (err) {
+    console.error(
+      err.code === 'EADDRINUSE'
+        ? `Port ${PORT} is already in use. Is another copy of the server running? Stop it or set PORT.`
+        : err,
+    )
+    process.exit(1)
+  }
   console.log(`API listening on http://localhost:${PORT} (model: ${MODEL}, key ${process.env.ANTHROPIC_API_KEY ? 'set' : 'MISSING'})`)
 })

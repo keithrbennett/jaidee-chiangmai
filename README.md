@@ -6,7 +6,11 @@ Hackathon MVP for Chiang Mai: partner-verified needs (schools, temples, shelters
 
 ## Run it
 
+Requires **Node.js 22.12 or newer** (`node -v`; with nvm, `nvm install` picks up `.nvmrc`) and npm.
+
 ```bash
+git clone git@github.com:keithrbennett/jaidee-chiangmai.git
+cd jaidee-chiangmai
 npm install
 cp .env.example .env      # optional: add ANTHROPIC_API_KEY for the Claude feature
 npm run dev               # web on http://localhost:5173, API on :8787 (proxied as /api)
