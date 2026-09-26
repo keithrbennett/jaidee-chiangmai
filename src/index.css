@@ -1,6 +1,27 @@
 @import 'tailwindcss';
 @import 'leaflet/dist/leaflet.css';
 
+/*
+ * Design tokens (Copter007's design rules): warm paper background, high-contrast ink,
+ * green for volunteering / confirming, orange-red for asking for help, red for urgent.
+ * Use them as Tailwind classes: bg-paper, text-ink, text-muted, border-line, bg-go, bg-ask …
+ */
+@theme {
+  --font-sans: 'Anuphan', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+
+  --color-paper: #f7f4ee;
+  --color-ink: #1f1b16;
+  --color-muted: #4a4238;
+  --color-line: #d9d2c5;
+  --color-card: #ffffff;
+  --color-go: #0f5e4c;
+  --color-go-soft: #e1f5ee;
+  --color-ask: #b23a1e;
+  --color-urgent: #a32d2d;
+  --color-urgent-soft: #fcebeb;
+  --color-off: #b4ada3;
+}
+
 html,
 body,
 #root {
@@ -9,25 +30,47 @@ body,
 
 body {
   margin: 0;
-  font-family: system-ui, 'Noto Sans Thai', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--color-ink);
+  background: var(--color-paper);
 }
 
-/* Emoji map pins rendered with L.divIcon */
+/* Visible keyboard focus everywhere (high contrast). */
+:focus-visible {
+  outline: 3px solid var(--color-go);
+  outline-offset: 2px;
+}
+
+/* Map pins rendered with L.divIcon: white disc, ink ring, line icon; urgent = red. */
 .need-pin {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   border-radius: 9999px;
-  border: 3px solid white;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
-  font-size: 18px;
+  border: 2px solid var(--color-ink);
+  background: var(--color-card);
+  color: var(--color-go);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+}
+.need-pin svg {
+  width: 22px;
+  height: 22px;
 }
 .need-pin.urgent {
-  border-color: #dc2626;
+  border-color: var(--color-urgent);
+  background: var(--color-urgent-soft);
+  color: var(--color-urgent);
 }
 .need-pin.selected {
   transform: scale(1.25);
-  border-color: #1d4ed8;
+  border-width: 3px;
+  border-color: var(--color-go);
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
 }

@@ -38,6 +38,8 @@ Every screen has its own URL (hash routes, so no server config is needed): `#/` 
 
 The interface is available in ไทย, English and 简体中文 (flag menu in the header; defaults to the browser language, remembered in `localStorage`). UI text lives in `src/i18n/` (`en.ts` is the source; `th.ts` and `zh.ts` must have every key or the build fails). The sample needs are content and are not translated yet.
 
+Design: Anuphan font, a warm high-contrast palette, white cards (2px border, 16px radius), buttons at least 44px tall (64px for the one main action on a screen), 17–19px body text and 26px titles, and simple inline SVG line icons instead of emoji. Colours are Tailwind theme tokens in `src/index.css` (`bg-paper`, `text-ink`, `bg-go`, `bg-ask`, `text-urgent` …); icons are in `src/lib/icons.ts`; shared buttons/cards are in `src/components/ui.tsx`.
+
 State (mode, language, commitments, posted needs) lives in `localStorage`. There is no database. To reset, clear site data in the browser.
 
 ## Stack

@@ -11,9 +11,10 @@ export const en = {
   tagline: 'Verified needs in Chiang Mai, matched with people who want to help',
   demoBanner: 'Hackathon demo · all needs, people and phone numbers are fictional',
   language: 'Language',
+  backToMap: 'Back to the map',
 
   modes: {
-    title: '🔒 Mode (admin)',
+    title: 'Mode (admin)',
     hint: 'In production only the municipality / admins can switch modes',
     normal: 'Normal',
     haze: 'Haze',
@@ -44,7 +45,7 @@ export const en = {
   stats: {
     volunteers: 'volunteers signed up',
     hours: 'hours pledged',
-    mine: 'of them yours 💚',
+    mine: 'of them yours',
   },
 
   categories: {
@@ -80,8 +81,8 @@ export const en = {
   },
 
   list: {
-    hazeBanner: '🔴 Haze emergency mode',
-    floodBanner: '🔵 Flood emergency mode',
+    hazeBanner: 'Haze emergency mode',
+    floodBanner: 'Flood emergency mode',
     emergencyExplainer: 'showing only urgent, partner-verified needs for this crisis. Switched on by Chiang Mai Municipality.',
     all: 'All',
     count: (n: number) => `${n} ${n === 1 ? 'need' : 'needs'} near you`,
@@ -99,9 +100,9 @@ export const en = {
   },
 
   detail: {
-    back: '← Back to list',
-    share: '🔗 Share',
-    copied: '✓ Link copied',
+    back: 'Back to list',
+    share: 'Share',
+    copied: 'Link copied',
     pendingExplainer: 'A partner must visit and verify this need before volunteers can join.',
     verifiedExplainer: (partner: string, days: number, contact: string) =>
       `Someone from ${partner} went and checked this in person. Verification expires in ${days} days. Host contact: ${contact}`,
@@ -113,10 +114,10 @@ export const en = {
     filled: (taken: number, total: number) => `${taken} / ${total} filled`,
     impactSoFar: 'Impact so far',
     impactNote: 'Numbers are confirmed by the host, not self-reported.',
-    safetyTitle: '⚠️ Safety rules',
+    safetyTitle: 'Safety rules',
     safetyNote: (category: string) => `Added automatically for every “${category}” need.`,
     waitlisted: "You're on the waitlist ⏳",
-    joined: "You're in! 🎉",
+    joined: "You're in!",
     waitlistNote: 'We will message you if a spot opens. Keep this code for check-in.',
     codeNote: 'Show this code to the host at check-in',
     cancel: "Can't make it? Cancel and free the spot",
@@ -131,7 +132,7 @@ export const en = {
     missingTitle: 'Need not found',
     expiredBody: 'Its verification is older than 14 days, so it is hidden until a partner re-checks it.',
     missingBody: 'It may have been filled or removed, or the link is incomplete.',
-    seeAll: '← See all needs',
+    seeAll: 'See all needs',
   },
 
   tasks: {
@@ -143,7 +144,7 @@ export const en = {
     across: (n: number) => `across ${n} verified ${n === 1 ? 'need' : 'needs'} in Chiang Mai`,
     receiptNote: 'Hours become confirmed impact once the host checks you in and signs off.',
     waitlist: '⏳ Waitlist',
-    confirmed: '✅ Confirmed',
+    confirmed: 'Confirmed',
     checkInCode: 'check-in code',
     cancel: 'Cancel',
   },
@@ -155,7 +156,7 @@ export const en = {
     placeholder: 'e.g. ต้องการอาสา 5 คน ช่วยทาสีห้องเรียน วันเสาร์นี้...',
     useSample: 'Use sample (Kru Noi)',
     drafting: 'Claude is drafting…',
-    draft: '✨ Draft job card with Claude',
+    draft: 'Draft job card with Claude',
     apiUnreachable: 'Could not reach the API server. Is `npm run dev` running (it starts both web and API)?',
     serverError: (status: number) => `Server returned ${status}`,
     where: 'Where',
@@ -166,6 +167,7 @@ export const en = {
     added: 'Added to the map at the current map centre as pending verification.',
     seeIt: 'See it on the map →',
     addToMap: 'Looks right → add to map (pending verification)',
+    edit: 'Edit the text',
     placeTbc: 'Location to be confirmed',
     demoPartner: 'You (demo partner)',
   },
@@ -193,7 +195,7 @@ export const en = {
     ],
     modesTitle: 'Emergency modes',
     modesBody:
-      'During the haze season 🔴 or a flood 🔵 the municipality switches the map to crisis needs only: masks, air purifiers, clean rooms, mud clean-up, water and drivers. Urgent needs come first.',
+      'During the haze season or a flood the municipality switches the map to crisis needs only: masks, air purifiers, clean rooms, mud clean-up, water and drivers. Urgent needs come first.',
     help: 'I want to help → find a need',
     needHelp: 'We need help → post a need',
   },

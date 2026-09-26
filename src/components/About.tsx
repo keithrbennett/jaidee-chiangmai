@@ -1,49 +1,49 @@
 import { useI18n } from '../i18n'
+import type { IconName } from '../lib/icons'
 import { href } from '../lib/router'
+import { Icon } from './Icon'
+import { BackLink, Button, ScreenTitle } from './ui'
 
-const STEP_ICONS = ['✅', '🙋', '🎫', '📊']
+const STEP_ICONS: IconName[] = ['shield', 'users', 'check', 'heart']
 
 export function About() {
   const { m } = useI18n()
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div>
-        <h2 className="text-lg font-bold">{m.about.title}</h2>
-        <p className="text-sm text-slate-600">{m.about.intro}</p>
-      </div>
+    <div className="flex flex-col gap-5 p-6">
+      <BackLink href={href({ name: 'map', category: 'all' })}>{m.backToMap}</BackLink>
+      <ScreenTitle sub={m.about.intro}>{m.about.title}</ScreenTitle>
 
-      <ol className="flex flex-col gap-2">
+      <ol className="flex flex-col gap-3">
         {m.about.steps.map((s, i) => (
-          <li key={i} className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <span className="text-2xl">{STEP_ICONS[i]}</span>
+          <li key={i} className="flex gap-4 rounded-2xl border-2 border-line bg-card p-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-go-soft text-go">
+              <Icon name={STEP_ICONS[i]} size={28} />
+            </span>
             <div>
-              <div className="font-semibold">
+              <div className="text-lg font-bold">
                 {i + 1}. {s.title}
               </div>
-              <p className="mt-1 text-sm text-slate-700">{s.body}</p>
+              <p className="mt-1 text-muted">{s.body}</p>
             </div>
           </li>
         ))}
       </ol>
 
-      <section className="rounded-xl bg-slate-100 p-3 text-sm">
-        <div className="mb-1 font-semibold">{m.about.modesTitle}</div>
-        <p>{m.about.modesBody}</p>
+      <section className="flex gap-3 rounded-2xl border-2 border-urgent bg-urgent-soft p-4">
+        <Icon name="alert" size={28} className="text-urgent" />
+        <div>
+          <div className="text-lg font-bold text-urgent">{m.about.modesTitle}</div>
+          <p>{m.about.modesBody}</p>
+        </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <a
-          href={href({ name: 'map', category: 'all' })}
-          className="rounded-xl bg-emerald-600 py-3 text-center font-bold text-white hover:bg-emerald-700"
-        >
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <Button main icon="users" href={href({ name: 'map', category: 'all' })}>
           {m.about.help}
-        </a>
-        <a
-          href={href({ name: 'post' })}
-          className="rounded-xl border border-slate-300 bg-white py-3 text-center font-semibold hover:bg-slate-100"
-        >
+        </Button>
+        <Button main variant="ask" icon="post" href={href({ name: 'post' })}>
           {m.about.needHelp}
-        </a>
+        </Button>
       </div>
     </div>
   )

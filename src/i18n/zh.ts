@@ -6,9 +6,10 @@ export const zh: Messages = {
   tagline: '清迈经过核实的需求，与想帮忙的人配对',
   demoBanner: '黑客松演示 · 所有需求、人物和电话号码均为虚构',
   language: '语言',
+  backToMap: '返回地图',
 
   modes: {
-    title: '🔒 模式（管理员）',
+    title: '模式（管理员）',
     hint: '正式上线后，只有市政府或管理员可以切换模式',
     normal: '正常',
     haze: '雾霾',
@@ -39,7 +40,7 @@ export const zh: Messages = {
   stats: {
     volunteers: '名志愿者已报名',
     hours: '小时已承诺',
-    mine: '其中是你的 💚',
+    mine: '其中是你的',
   },
 
   categories: {
@@ -70,8 +71,8 @@ export const zh: Messages = {
   },
 
   list: {
-    hazeBanner: '🔴 雾霾紧急模式',
-    floodBanner: '🔵 洪水紧急模式',
+    hazeBanner: '雾霾紧急模式',
+    floodBanner: '洪水紧急模式',
     emergencyExplainer: '只显示本次危机中经合作伙伴核实的紧急需求。由清迈市政府开启。',
     all: '全部',
     count: (n) => `附近有 ${n} 个需求`,
@@ -88,9 +89,9 @@ export const zh: Messages = {
   },
 
   detail: {
-    back: '← 返回列表',
-    share: '🔗 分享',
-    copied: '✓ 链接已复制',
+    back: '返回列表',
+    share: '分享',
+    copied: '链接已复制',
     pendingExplainer: '合作伙伴须到现场核实此需求后，志愿者才能报名。',
     verifiedExplainer: (partner, days, contact) =>
       `${partner} 的工作人员已到现场亲自核实。核实将在 ${days} 天后过期。负责人联系方式：${contact}`,
@@ -102,10 +103,10 @@ export const zh: Messages = {
     filled: (taken, total) => `已报名 ${taken} / ${total}`,
     impactSoFar: '目前成果',
     impactNote: '数字由负责人确认，而非志愿者自行填报。',
-    safetyTitle: '⚠️ 安全规定',
+    safetyTitle: '安全规定',
     safetyNote: (category) => `所有“${category}”类需求都会自动附上。`,
     waitlisted: '你已在候补名单中 ⏳',
-    joined: '报名成功！🎉',
+    joined: '报名成功！',
     waitlistNote: '有空位时我们会通知你。请保留此代码用于签到。',
     codeNote: '签到时向负责人出示此代码',
     cancel: '去不了？取消以释放名额',
@@ -120,7 +121,7 @@ export const zh: Messages = {
     missingTitle: '找不到此需求',
     expiredBody: '其核实已超过 14 天，在合作伙伴重新核实前将被隐藏。',
     missingBody: '可能已满员或已被删除，或链接不完整。',
-    seeAll: '← 查看全部需求',
+    seeAll: '查看全部需求',
   },
 
   tasks: {
@@ -132,7 +133,7 @@ export const zh: Messages = {
     across: (n) => `来自清迈 ${n} 个经核实的需求`,
     receiptNote: '负责人为你签到并确认后，这些小时才会成为已确认的成果。',
     waitlist: '⏳ 候补',
-    confirmed: '✅ 已确认',
+    confirmed: '已确认',
     checkInCode: '签到码',
     cancel: '取消',
   },
@@ -143,7 +144,7 @@ export const zh: Messages = {
     placeholder: '例如：ต้องการอาสา 5 คน ช่วยทาสีห้องเรียน วันเสาร์นี้...',
     useSample: '使用示例（Noi 老师）',
     drafting: 'Claude 正在起草…',
-    draft: '✨ 让 Claude 起草任务卡片',
+    draft: '让 Claude 起草任务卡片',
     apiUnreachable: '无法连接 API 服务器。`npm run dev` 是否在运行（它会同时启动网页和 API）？',
     serverError: (status) => `服务器返回 ${status}`,
     where: '地点',
@@ -154,6 +155,7 @@ export const zh: Messages = {
     added: '已以“待核实”状态添加到当前地图中心位置。',
     seeIt: '在地图上查看 →',
     addToMap: '没问题 → 添加到地图（待核实）',
+    edit: '修改文字',
     placeTbc: '地点待确认',
     demoPartner: '你（演示合作伙伴）',
   },
@@ -181,7 +183,7 @@ export const zh: Messages = {
     ],
     modesTitle: '紧急模式',
     modesBody:
-      '在雾霾季 🔴 或洪水期间 🔵，市政府会把地图切换为只显示危机需求：口罩、空气净化器、洁净室、清理淤泥、饮用水和司机。紧急需求优先显示。',
+      '在雾霾季或洪水期间，市政府会把地图切换为只显示危机需求：口罩、空气净化器、洁净室、清理淤泥、饮用水和司机。紧急需求优先显示。',
     help: '我想帮忙 → 寻找需求',
     needHelp: '我们需要帮助 → 发布需求',
   },

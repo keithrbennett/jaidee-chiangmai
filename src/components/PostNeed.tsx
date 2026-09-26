@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useI18n } from '../i18n'
-import { CATEGORIES } from '../lib/categories'
+import { CATEGORY_ICONS } from '../lib/categories'
 import type { LatLng } from '../lib/geo'
 import { href } from '../lib/router'
 import type { Category, Need } from '../types'
+import { Icon } from './Icon'
+import { BackLink, Button, Card, Pill, ScreenTitle } from './ui'
 
 /** Shape returned by POST /api/translate-need (see server/index.js). */
 interface NeedDraft {
@@ -83,82 +85,77 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <div>
-        <h2 className="text-lg font-bold">{m.post.title}</h2>
-        <p className="text-sm text-slate-600">{m.post.intro}</p>
-      </div>
+    <div className="flex flex-col gap-5 p-6">
+      <BackLink href={href({ name: 'map', category: 'all' })}>{m.backToMap}</BackLink>
+      <ScreenTitle sub={m.post.intro}>{m.post.title}</ScreenTitle>
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={6}
-        placeholder={m.post.placeholder}
-        className="rounded-lg border border-slate-300 p-2 text-sm"
-      />
-      <div className="flex gap-2">
-        <button
-          onClick={() => setText(SAMPLE_TH)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
-        >
-          {m.post.useSample}
-        </button>
-        <button
-          onClick={generate}
-          disabled={loading || text.trim().length < 10}
-          className="flex-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
-        >
-          {loading ? m.post.drafting : m.post.draft}
-        </button>
-      </div>
+      {/* One decision per screen: write the need, then check Claude's draft. */}
+      {!draft && (
+        <>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={7}
+            placeholder={m.post.placeholder}
+            className="rounded-2xl border-2 border-line bg-card p-4 text-lg placeholder:text-off focus:border-go"
+          />
+          <Button variant="secondary" onClick={() => setText(SAMPLE_TH)} className="self-start">
+            {m.post.useSample}
+          </Button>
+          <Button main variant="ask" icon="sparkle" onClick={generate} disabled={loading || text.trim().length < 10}>
+            {loading ? m.post.drafting : m.post.draft}
+          </Button>
+        </>
+      )}
 
-      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-800">⚠️ {error}</div>}
+      {error && (
+        <div className="flex gap-3 rounded-2xl border-2 border-urgent bg-urgent-soft p-4 text-urgent">
+          <Icon name="alert" size={26} /> {error}
+        </div>
+      )}
 
       {draft && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-1 text-sm">
-            <span
-              className="rounded-full px-2 py-0.5 text-white"
-              style={{ background: CATEGORIES[draft.category]?.color ?? '#64748b' }}
-            >
-              {CATEGORIES[draft.category]?.emoji} {m.categories[draft.category] ?? draft.category}
-            </span>
-          </div>
-          <h3 className="text-lg font-bold">{draft.title_en}</h3>
-          <p className="text-slate-500">{draft.title_th}</p>
-          <p className="mt-2 text-sm">{draft.description_en}</p>
-          <p className="mt-1 text-sm text-slate-500">{draft.description_th}</p>
-          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 text-sm">
-            <dt className="text-slate-500">{m.post.where}</dt>
+        <Card>
+          <Pill tone="neutral" icon={CATEGORY_ICONS[draft.category] ?? 'about'}>
+            {m.categories[draft.category] ?? draft.category}
+          </Pill>
+          <h3 className="mt-2 text-[26px] font-bold leading-tight">{draft.title_en}</h3>
+          <p className="text-lg text-muted">{draft.title_th}</p>
+          <p className="mt-3">{draft.description_en}</p>
+          <p className="mt-1 text-muted">{draft.description_th}</p>
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+            <dt className="text-muted">{m.post.where}</dt>
             <dd>{draft.place || '—'}</dd>
-            <dt className="text-slate-500">{m.post.when}</dt>
+            <dt className="text-muted">{m.post.when}</dt>
             <dd>
               {draft.slot_label} ({m.detail.hours(draft.hours)})
             </dd>
-            <dt className="text-slate-500">{m.post.volunteers}</dt>
+            <dt className="text-muted">{m.post.volunteers}</dt>
             <dd>{draft.spots_total}</dd>
-            <dt className="text-slate-500">{m.post.skills}</dt>
+            <dt className="text-muted">{m.post.skills}</dt>
             <dd>{draft.skills.join(', ')}</dd>
           </dl>
-          <p className="mt-2 text-xs text-slate-500">
-            {m.post.draftNote}
-          </p>
+          <p className="mt-3 text-base text-muted">{m.post.draftNote}</p>
           {addedId ? (
-            <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-800">
-              ✅ {m.post.added}{' '}
-              <a href={href({ name: 'need', id: addedId })} className="font-semibold underline">
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border-2 border-go bg-go-soft p-4 text-go">
+              <span className="inline-flex items-center gap-2 font-semibold">
+                <Icon name="check" /> {m.post.added}
+              </span>
+              <Button main href={href({ name: 'need', id: addedId })} icon="map">
                 {m.post.seeIt}
-              </a>
+              </Button>
             </div>
           ) : (
-            <button
-              onClick={addToMap}
-              className="mt-3 w-full rounded-lg bg-emerald-600 py-2 font-semibold text-white hover:bg-emerald-700"
-            >
-              {m.post.addToMap}
-            </button>
+            <div className="mt-4 flex flex-col gap-3">
+              <Button main icon="check" onClick={addToMap}>
+                {m.post.addToMap}
+              </Button>
+              <Button variant="secondary" icon="back" onClick={() => setDraft(null)} className="self-start">
+                {m.post.edit}
+              </Button>
+            </div>
           )}
-        </div>
+        </Card>
       )}
     </div>
   )

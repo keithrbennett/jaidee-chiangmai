@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
 import { useI18n } from '../i18n'
-import { CATEGORIES } from '../lib/categories'
+import { CATEGORY_ICONS } from '../lib/categories'
 import { distanceKm, formatKm, type LatLng } from '../lib/geo'
 import { isPending, spotsLeft, verifiedLabel } from '../lib/needs'
 import { href } from '../lib/router'
 import type { Category, Commitment, Mode, Need } from '../types'
+import { Icon } from './Icon'
+import { Pill } from './ui'
 
 interface Props {
   needs: Need[]
@@ -22,91 +24,98 @@ export function NeedList(props: Props) {
   const { needs, mode, userLocation, locationIsDefault, commitments, category, categories } = props
   const { m } = useI18n()
   return (
-    <div className="flex flex-col gap-3 p-4">
+    <div className="flex flex-col gap-4 p-6">
       {mode !== 'normal' && (
-        <div
-          className={`rounded-lg p-3 text-sm ${mode === 'haze' ? 'bg-red-50 text-red-900' : 'bg-blue-50 text-blue-900'}`}
-        >
-          <b>{mode === 'haze' ? m.list.hazeBanner : m.list.floodBanner}</b> — {m.list.emergencyExplainer}
+        <div className="flex gap-3 rounded-2xl border-2 border-urgent bg-urgent-soft p-4 text-urgent">
+          <Icon name="alert" size={28} />
+          <div>
+            <b className="text-lg">{mode === 'haze' ? m.list.hazeBanner : m.list.floodBanner}</b>
+            <p className="text-base">{m.list.emergencyExplainer}</p>
+          </div>
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         <Chip active={category === 'all'} onClick={() => props.onCategoryChange('all')}>
           {m.list.all}
         </Chip>
         {categories.map((c) => (
           <Chip key={c} active={category === c} onClick={() => props.onCategoryChange(c)}>
-            {CATEGORIES[c].emoji} {m.categories[c]}
+            <Icon name={CATEGORY_ICONS[c]} size={20} />
+            {m.categories[c]}
           </Chip>
         ))}
       </div>
 
-      <h2 className="text-sm font-semibold text-slate-700">
-        {m.list.count(needs.length)}
-        <span className="font-normal text-slate-500">
-          {' '}
-          · {mode === 'normal' ? m.list.sortedByDistance : m.list.sortedByUrgency}
-          {locationIsDefault && ` ${m.list.fromNimman}`}
-        </span>
-      </h2>
+      <div>
+        <h2 className="text-[26px] font-bold leading-tight">{m.list.count(needs.length)}</h2>
+        <p className="text-base text-muted">
+          {mode === 'normal' ? m.list.sortedByDistance : m.list.sortedByUrgency}
+          {locationIsDefault && ` · ${m.list.fromNimman}`}
+        </p>
+      </div>
 
       {needs.length === 0 && (
-        <p className="text-sm text-slate-500">
+        <p className="text-muted">
           {m.list.noMatch}{' '}
           {category !== 'all' && (
-            <button onClick={() => props.onCategoryChange('all')} className="text-emerald-700 hover:underline">
+            <button onClick={() => props.onCategoryChange('all')} className="font-semibold text-go underline">
               {m.list.showAll}
             </button>
           )}
         </p>
       )}
 
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {needs.map((n) => {
-          const cat = CATEGORIES[n.category]
           const left = spotsLeft(n, commitments)
           const mine = commitments.some((c) => c.needId === n.id)
           return (
             <li key={n.id}>
               <a
                 href={href({ name: 'need', id: n.id })}
-                className="block w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:border-slate-400"
+                className={`flex gap-4 rounded-2xl border-2 bg-card p-4 hover:border-muted ${
+                  n.urgent ? 'border-urgent' : 'border-line'
+                }`}
               >
-                <div className="flex items-start gap-3">
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg"
-                    style={{ background: cat.color }}
-                  >
-                    {cat.emoji}
+                <span
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
+                    n.urgent ? 'bg-urgent-soft text-urgent' : 'bg-go-soft text-go'
+                  }`}
+                >
+                  <Icon name={CATEGORY_ICONS[n.category]} size={28} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  {(n.urgent || mine) && (
+                    <span className="mb-1 flex flex-wrap gap-2">
+                      {n.urgent && <Pill tone="urgent" icon="alert">{m.list.urgent}</Pill>}
+                      {mine && <Pill tone="go" icon="check">{m.list.youreIn}</Pill>}
+                    </span>
+                  )}
+                  <span className="block text-lg font-bold leading-snug">{n.title.en}</span>
+                  <span className="block text-base text-muted">{n.title.th}</span>
+                  <span className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-base text-muted">
+                    <span className="inline-flex items-center gap-1">
+                      <Icon name="pin" size={18} /> {formatKm(distanceKm(userLocation, n))}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 ${left === 0 ? 'font-semibold text-urgent' : ''}`}>
+                      <Icon name="users" size={18} />
+                      {left === 0 ? m.list.full : m.list.spotsLeft(left, n.spotsTotal)}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 ${isPending(n) ? '' : 'text-go'}`}>
+                      <Icon name={isPending(n) ? 'clock' : 'shield'} size={18} />
+                      {verifiedLabel(n, m)}
+                    </span>
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {n.urgent && <span className="rounded bg-red-600 px-1.5 text-xs font-bold text-white">{m.list.urgent}</span>}
-                      {mine && <span className="rounded bg-emerald-600 px-1.5 text-xs font-bold text-white">{m.list.youreIn}</span>}
-                      <span className="font-semibold">{n.title.en}</span>
-                    </div>
-                    <div className="text-sm text-slate-500">{n.title.th}</div>
-                    <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-600">
-                      <span>📍 {formatKm(distanceKm(userLocation, n))}</span>
-                      <span className={left === 0 ? 'text-red-600' : ''}>
-                        👥 {left === 0 ? m.list.full : m.list.spotsLeft(left, n.spotsTotal)}
-                      </span>
-                      <span className={isPending(n) ? 'text-amber-700' : 'text-emerald-700'}>
-                        {isPending(n) ? '⏳' : '✅'} {verifiedLabel(n, m)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                </span>
+                <Icon name="forward" size={24} className="self-center text-muted" />
               </a>
             </li>
           )
         })}
       </ul>
 
-      {props.hiddenStaleCount > 0 && (
-        <p className="text-xs text-slate-500">{m.list.hiddenStale(props.hiddenStaleCount)}</p>
-      )}
+      {props.hiddenStaleCount > 0 && <p className="text-base text-muted">{m.list.hiddenStale(props.hiddenStaleCount)}</p>}
     </div>
   )
 }
@@ -115,8 +124,9 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   return (
     <button
       onClick={onClick}
-      className={`rounded-full border px-3 py-1 text-sm ${
-        active ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white hover:bg-slate-100'
+      aria-pressed={active}
+      className={`inline-flex min-h-11 items-center gap-2 rounded-xl border-2 px-4 text-base font-semibold ${
+        active ? 'border-ink bg-ink text-white' : 'border-line bg-card text-ink hover:border-muted'
       }`}
     >
       {children}

@@ -2,7 +2,8 @@ import L from 'leaflet'
 import { useEffect } from 'react'
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { useI18n } from '../i18n'
-import { CATEGORIES } from '../lib/categories'
+import { CATEGORY_ICONS } from '../lib/categories'
+import { iconSvg } from '../lib/icons'
 import { CHIANG_MAI_CENTER, type LatLng } from '../lib/geo'
 import type { Need } from '../types'
 
@@ -15,13 +16,12 @@ interface Props {
 }
 
 function pinIcon(need: Need, selected: boolean) {
-  const cat = CATEGORIES[need.category]
   const classes = ['need-pin', need.urgent ? 'urgent' : '', selected ? 'selected' : ''].join(' ')
   return L.divIcon({
     className: '',
-    html: `<div class="${classes}" style="background:${cat.color}">${cat.emoji}</div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    html: `<div class="${classes}">${iconSvg(CATEGORY_ICONS[need.category])}</div>`,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
   })
 }
 
@@ -68,7 +68,7 @@ export function NeedMap({ needs, selectedId, onSelect, userLocation, onCenterCha
       <CircleMarker
         center={[userLocation.lat, userLocation.lng]}
         radius={8}
-        pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.9 }}
+        pathOptions={{ color: '#1F1B16', weight: 3, fillColor: '#FFFFFF', fillOpacity: 1 }}
       >
         <Tooltip>{m.map.youAreHere}</Tooltip>
       </CircleMarker>

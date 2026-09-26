@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Category } from '../types'
-import { CATEGORIES } from './categories'
+import { CATEGORY_ICONS } from './categories'
 
 /**
  * Tiny hash router. Hash URLs work on the Vite dev server, `vite preview` and the Express
@@ -30,7 +30,7 @@ export function parseHash(hash: string): Route {
   if (parts[0] === 'post') return { name: 'post' }
   if (parts[0] === 'about') return { name: 'about' }
   const cat = new URLSearchParams(query).get('cat')
-  return { name: 'map', category: cat && cat in CATEGORIES ? (cat as Category) : 'all' }
+  return { name: 'map', category: cat && cat in CATEGORY_ICONS ? (cat as Category) : 'all' }
 }
 
 export function href(route: Route): string {

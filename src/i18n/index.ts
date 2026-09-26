@@ -6,10 +6,10 @@ import { zh } from './zh'
 export type { Messages }
 export type Lang = 'en' | 'th' | 'zh'
 
-export const LANGUAGES: { code: Lang; htmlLang: string; flag: string; name: string }[] = [
-  { code: 'th', htmlLang: 'th', flag: '🇹🇭', name: 'ไทย' },
-  { code: 'en', htmlLang: 'en', flag: '🇬🇧', name: 'English' },
-  { code: 'zh', htmlLang: 'zh-CN', flag: '🇨🇳', name: '简体中文' },
+export const LANGUAGES: { code: Lang; htmlLang: string; name: string }[] = [
+  { code: 'th', htmlLang: 'th', name: 'ไทย' },
+  { code: 'en', htmlLang: 'en', name: 'English' },
+  { code: 'zh', htmlLang: 'zh-CN', name: '简体中文' },
 ]
 
 export const MESSAGES: Record<Lang, Messages> = { en, th, zh }
