@@ -29,7 +29,7 @@ export function Home({ mode, openCount, urgentCount, myTaskCount }: Props) {
       {mode !== 'normal' && (
         <a
           href={find}
-          className="flex min-h-16 flex-wrap items-center gap-3 rounded-2xl border-2 border-urgent bg-urgent-soft px-5 py-3 text-urgent hover:bg-[#f8dcdc]"
+          className="flex min-h-14 flex-wrap items-center gap-3 rounded-[18px] bg-urgent-soft px-5 py-3 text-urgent hover:opacity-90"
         >
           <Icon name="alert" size={28} />
           <b className="mr-auto text-xl">{(mode === 'haze' ? m.home.hazeUrgent : m.home.floodUrgent)(urgentCount)}</b>
@@ -83,23 +83,25 @@ export function Home({ mode, openCount, urgentCount, myTaskCount }: Props) {
 }
 
 const TONES = {
+  // Colours come from theme tokens so each card still reads in dark mode ("ask" inverts: black card in
+  // light mode, white card in dark mode, with its text and button inverted to match).
   go: {
-    card: 'border-go bg-go text-white hover:bg-[#0b4a3c]',
+    card: 'bg-go text-white hover:bg-go-hover',
     badge: 'bg-white/15 text-white',
     sub: 'text-white/85',
     cta: 'bg-white text-go',
   },
   ask: {
-    card: 'border-ask bg-ask text-white hover:bg-[#962f17]',
-    badge: 'bg-white/15 text-white',
-    sub: 'text-white/85',
-    cta: 'bg-white text-ask',
+    card: 'bg-ask text-on-ask hover:opacity-90',
+    badge: 'bg-on-ask/15 text-on-ask',
+    sub: 'text-on-ask/75',
+    cta: 'bg-on-ask text-ask',
   },
   plain: {
-    card: 'border-ink bg-card text-ink hover:bg-paper',
+    card: 'bg-card text-ink hover:shadow-[0_4px_24px_rgb(0_0_0/0.08)]',
     badge: 'bg-go-soft text-go',
     sub: 'text-muted',
-    cta: 'bg-ink text-white',
+    cta: 'bg-ink text-page',
   },
 }
 
@@ -119,22 +121,22 @@ function RoleCard({ href, tone, icon, title, who, body, meta, cta }: RoleCardPro
   return (
     <a
       href={href}
-      className={`group flex flex-col gap-4 rounded-2xl border-2 p-5 shadow-sm transition-colors md:min-h-[380px] md:p-6 ${t.card}`}
+      className={`group flex flex-col gap-4 rounded-[18px] p-5 transition md:min-h-[380px] md:p-7 ${t.card}`}
     >
       {/* Phones: icon beside the title and no description, so all three choices fit on one screen. */}
       <span className="flex items-center gap-4 md:flex-col md:items-start">
-        <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl md:h-16 md:w-16 ${t.badge}`}>
+        <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:h-16 md:w-16 ${t.badge}`}>
           <Icon name={icon} size={34} />
         </span>
         <span>
-          <span className="block text-[26px] font-bold leading-tight md:text-[30px]">{title}</span>
+          <span className="block text-[26px] font-semibold leading-tight md:text-[30px]">{title}</span>
           <span className={`mt-1 block text-lg font-semibold ${t.sub}`}>{who}</span>
         </span>
       </span>
       <span className="hidden text-lg md:block">{body}</span>
       {meta && <span className={`hidden text-base font-semibold md:block ${t.sub}`}>{meta}</span>}
       <span
-        className={`mt-auto inline-flex min-h-16 w-full items-center justify-center gap-2 rounded-2xl px-5 text-xl font-bold ${t.cta}`}
+        className={`mt-auto inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full px-5 text-[19px] font-medium ${t.cta}`}
       >
         {cta}
         <Icon name="forward" size={26} className="transition-transform group-hover:translate-x-1" />
