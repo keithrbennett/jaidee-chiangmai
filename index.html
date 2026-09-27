@@ -7,8 +7,8 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#161617" media="(prefers-color-scheme: dark)" />
+    <!-- Kept in step with the resolved theme by src/lib/theme.ts. -->
+    <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="Verified needs in Chiang Mai, matched with people who want to help" />
     <meta property="og:title" content="Jaidee Chiang Mai · แผนที่ช่วยกัน" />
     <meta property="og:description" content="Verified needs in Chiang Mai, matched with people who want to help" />
@@ -19,6 +19,25 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>Jaidee · แผนที่ช่วยกัน</title>
+    <!--
+      Resolve the saved theme before the first paint, so a chosen light page never flashes dark
+      (and the reverse). Mirrors src/lib/theme.ts; the key holds JSON, as useLocalStorage writes it.
+    -->
+    <script>
+      ;(function () {
+        var resolved = 'light'
+        try {
+          var pref = JSON.parse(localStorage.getItem('jaidee.theme') || '"system"')
+          var dark = pref === 'dark' || (pref !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+          resolved = dark ? 'dark' : 'light'
+        } catch (e) {
+          /* private mode or bad value: fall back to light */
+        }
+        document.documentElement.dataset.theme = resolved
+        var bar = document.querySelector('meta[name="theme-color"]')
+        if (bar) bar.setAttribute('content', resolved === 'dark' ? '#161617' : '#ffffff')
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

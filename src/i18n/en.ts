@@ -11,6 +11,12 @@ export const en = {
   tagline: 'Verified needs in Chiang Mai, matched with people who want to help',
   demoBanner: 'Hackathon demo · all needs, people and phone numbers are fictional',
   language: 'Language',
+  theme: {
+    title: 'Appearance',
+    system: 'Match my device',
+    light: 'Light',
+    dark: 'Dark',
+  },
   backHome: 'Home',
 
   modes: {

@@ -6,6 +6,12 @@ export const zh: Messages = {
   tagline: '清迈经过核实的需求，与想帮忙的人配对',
   demoBanner: '黑客松演示 · 所有需求、人物和电话号码均为虚构',
   language: '语言',
+  theme: {
+    title: '外观',
+    system: '跟随设备',
+    light: '浅色',
+    dark: '深色',
+  },
   backHome: '首页',
 
   modes: {

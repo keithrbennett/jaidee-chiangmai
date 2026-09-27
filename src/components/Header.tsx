@@ -4,6 +4,7 @@ import { href, type Route, type Tab } from '../lib/router'
 import type { Mode } from '../types'
 import { Icon } from './Icon'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { ThemeSwitcher } from './ThemeSwitcher'
 
 interface Props {
   mode: Mode
@@ -65,6 +66,7 @@ export function Header({ mode, onModeChange, tab, stats, myTaskCount }: Props) {
               </a>
             ))}
           </div>
+          <ThemeSwitcher />
           <LanguageSwitcher />
         </div>
       </nav>

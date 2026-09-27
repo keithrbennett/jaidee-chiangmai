@@ -4,10 +4,17 @@
 /*
  * Apple-style design (after the "Flood Help Desk" concept): white and light-grey surfaces,
  * near-black ink, one blue accent, red only for urgent, pill buttons, borderless 18px tiles,
- * a frosted sticky nav, and automatic dark mode. Raw values live in :root so dark mode can
+ * a frosted sticky nav, and light or dark mode. Raw values live in :root so dark mode can
  * swap them; the Tailwind tokens below point at them (bg-paper, bg-card, text-ink, bg-go …).
+ *
+ * Which set applies is decided by <html data-theme>, written by src/lib/theme.ts and, before
+ * the first paint, by the small script in index.html. "System" resolves to light or dark there,
+ * so nothing here reads prefers-color-scheme directly.
  */
-:root {
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root,
+:root[data-theme='light'] {
   --surface: #ffffff;
   --surface-alt: #f5f5f7;
   --tile: #ffffff;
@@ -29,31 +36,30 @@
   /* "Ask for help" buttons: black pill in light mode, white pill in dark mode. */
   --ask: #1d1d1f;
   --on-ask: #ffffff;
-  color-scheme: light;
+  /* `only` also opts out of Chrome's "Auto dark theme for web contents". */
+  color-scheme: only light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface: #000000;
-    --surface-alt: #161617;
-    --tile: #1d1d1f;
-    --ink: #f5f5f7;
-    --ink-2: #a1a1a6;
-    --ink-3: #86868b;
-    --accent: #0a84ff;
-    --accent-hover: #409cff;
-    --accent-soft: #0b2a4a;
-    --link: #2997ff;
-    --hairline: #424245;
-    --urgent: #ff453a;
-    --urgent-soft: #3a1414;
-    --inverse: #1d1d1f;
-    --nav: rgb(22 22 23 / 0.82);
-    --disabled: #48484a;
-    --ask: #f5f5f7;
-    --on-ask: #000000;
-    color-scheme: dark;
-  }
+:root[data-theme='dark'] {
+  --surface: #000000;
+  --surface-alt: #161617;
+  --tile: #1d1d1f;
+  --ink: #f5f5f7;
+  --ink-2: #a1a1a6;
+  --ink-3: #86868b;
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
+  --accent-soft: #0b2a4a;
+  --link: #2997ff;
+  --hairline: #424245;
+  --urgent: #ff453a;
+  --urgent-soft: #3a1414;
+  --inverse: #1d1d1f;
+  --nav: rgb(22 22 23 / 0.82);
+  --disabled: #48484a;
+  --ask: #f5f5f7;
+  --on-ask: #000000;
+  color-scheme: only dark;
 }
 
 @theme {
@@ -143,8 +149,6 @@ h3 {
 }
 
 /* Dark mode: darken the OpenStreetMap tiles so the map doesn't glare. */
-@media (prefers-color-scheme: dark) {
-  .leaflet-tile-pane {
-    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
-  }
+[data-theme='dark'] .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
 }
