@@ -11,7 +11,7 @@ export const en = {
   tagline: 'Verified needs in Chiang Mai, matched with people who want to help',
   demoBanner: 'Hackathon demo · all needs, people and phone numbers are fictional',
   language: 'Language',
-  backToMap: 'Back to the map',
+  backHome: 'Home',
 
   modes: {
     title: 'Mode (admin)',
@@ -28,6 +28,35 @@ export const en = {
     flood: 'above 3.7 m warning',
     riverGauge: 'Ping River P.1',
     good: 'Good',
+  },
+
+  home: {
+    title: 'What would you like to do?',
+    sub: 'Choose one to get started.',
+    help: {
+      title: 'I want to help',
+      who: 'Anyone · no Thai needed',
+      body: 'Pick a verified task near you and a time that suits you.',
+      cta: 'Find a need',
+    },
+    ask: {
+      title: 'We need help',
+      who: 'Schools, temples, shelters, communities',
+      body: 'Write what you need in Thai. Claude turns it into a Thai/English card for volunteers.',
+      cta: 'Post a need',
+    },
+    tasks: {
+      title: "I've signed up",
+      who: 'Volunteers',
+      body: 'See your tasks, times and check-in codes.',
+      cta: 'My tasks',
+    },
+    open: (n: number) => `${n} ${n === 1 ? 'need' : 'needs'} open now`,
+    joined: (n: number) => (n === 0 ? 'Nothing joined yet' : `${n} joined`),
+    hazeUrgent: (n: number) => `Haze emergency: ${n} urgent ${n === 1 ? 'need' : 'needs'} right now`,
+    floodUrgent: (n: number) => `Flood emergency: ${n} urgent ${n === 1 ? 'need' : 'needs'} right now`,
+    helpNow: 'Help now',
+    howItWorks: 'New here? See how it works',
   },
 
   tabs: {
@@ -205,6 +234,7 @@ export const en = {
   },
 
   titles: {
+    home: 'Home',
     map: 'Find a need',
     tasks: 'My tasks',
     post: 'Post a need',

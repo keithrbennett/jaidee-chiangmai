@@ -20,22 +20,25 @@ const MODES: { id: Mode; icon: IconName; activeClass: string }[] = [
   { id: 'flood', icon: 'flood', activeClass: 'border-urgent bg-urgent text-white' },
 ]
 
-const TABS: { id: Tab; route: Route; icon: IconName }[] = [
+// Home is reached from the logo; it isn't a tab.
+type NavTab = Exclude<Tab, 'home'>
+
+const TABS: { id: NavTab; route: Route; icon: IconName }[] = [
   { id: 'map', route: { name: 'map', category: 'all' }, icon: 'map' },
   { id: 'tasks', route: { name: 'tasks' }, icon: 'tasks' },
   { id: 'post', route: { name: 'post' }, icon: 'post' },
   { id: 'about', route: { name: 'about' }, icon: 'about' },
 ]
 
-const tabLabel = (m: Messages, tab: Tab) => m.tabs[tab]
-const tabShort = (m: Messages, tab: Tab) => m.tabs[`${tab}Short`]
+const tabLabel = (m: Messages, tab: NavTab) => m.tabs[tab]
+const tabShort = (m: Messages, tab: NavTab) => m.tabs[`${tab}Short`]
 
 export function Header({ mode, onModeChange, tab, stats, myTaskCount }: Props) {
   const { m } = useI18n()
   return (
     <header className="border-b-2 border-line bg-card">
       <div className="flex items-center gap-6 px-6 py-3">
-        <a href={href({ name: 'map', category: 'all' })} className="mr-auto flex items-center gap-3">
+        <a href={href({ name: 'home' })} className="mr-auto flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-go text-white">
             <Icon name="heart" size={24} />
           </span>

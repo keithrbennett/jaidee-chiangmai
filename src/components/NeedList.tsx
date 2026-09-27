@@ -6,7 +6,7 @@ import { isPending, spotsLeft, verifiedLabel } from '../lib/needs'
 import { href } from '../lib/router'
 import type { Category, Commitment, Mode, Need } from '../types'
 import { Icon } from './Icon'
-import { Pill } from './ui'
+import { BackLink, Pill } from './ui'
 
 interface Props {
   needs: Need[]
@@ -25,6 +25,7 @@ export function NeedList(props: Props) {
   const { m } = useI18n()
   return (
     <div className="flex flex-col gap-4 p-6">
+      <BackLink href={href({ name: 'home' })}>{m.backHome}</BackLink>
       {mode !== 'normal' && (
         <div className="flex gap-3 rounded-2xl border-2 border-urgent bg-urgent-soft p-4 text-urgent">
           <Icon name="alert" size={28} />

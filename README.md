@@ -28,13 +28,14 @@ Everything except "Draft job card with Claude" works without an API key. If you 
 
 | Screen | What it shows |
 |---|---|
+| **Home** | One question, "What would you like to do?", and three large cards that are the whole choice: **I want to help** (green, to the list and map), **We need help** (orange-red, to posting a need) and **I've signed up** (to My tasks). During haze or flood mode a red bar above them links straight to the urgent needs. |
 | **Find a need** | Map + list of verified needs sorted by distance (browser location if shared and near Chiang Mai, otherwise Nimman). Category filter chips. Needs whose verification is older than 14 days are hidden. |
 | **Need detail** | Who verified it and when, English + Thai original, skills, spots left, host-confirmed impact progress, safety rules added automatically per category, slot picker, **I'm in** → check-in code (or waitlist when full). |
 | **Emergency modes** | 🔴 Haze / 🔵 Flood toggle (admin-only in a real build). Shows only crisis needs, urgent first, with an AQI or Ping River P.1 badge (static demo values). |
 | **My tasks** | Your commitments, check-in codes, cancel, and a pledged-hours impact receipt. |
 | **Partner: post a need** | Paste Thai text as you'd write it in LINE → Claude drafts a bilingual job card → add it to the map as *pending verification* (volunteers can't join until a partner verifies). |
 
-Every screen has its own URL (hash routes, so no server config is needed): `#/` list + map, `#/?cat=school` filtered list, `#/need/<id>` one need (with a Share button), `#/tasks`, `#/post`, `#/about` (how it works). The browser back button works, and opening a need link switches to the mode it belongs to. On phones the tabs move to a bottom bar.
+Every screen has its own URL (hash routes, so no server config is needed): `#/` home, `#/find` list + map, `#/find?cat=school` filtered list (older `#/?cat=school` links still work), `#/need/<id>` one need (with a Share button), `#/tasks`, `#/post`, `#/about` (how it works). The browser back button works, and opening a need link switches to the mode it belongs to. On phones the tabs move to a bottom bar.
 
 The interface is available in ไทย, English and 简体中文 (flag menu in the header; defaults to the browser language, remembered in `localStorage`). UI text lives in `src/i18n/` (`en.ts` is the source; `th.ts` and `zh.ts` must have every key or the build fails). The sample needs are content and are not translated yet.
 

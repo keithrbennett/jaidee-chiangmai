@@ -23,7 +23,7 @@ export function MyTasks({ commitments, needs, onCancel }: Props) {
 
   return (
     <div className="flex flex-col gap-5 p-6">
-      <BackLink href={MAP_HREF}>{m.backToMap}</BackLink>
+      <BackLink href={href({ name: 'home' })}>{m.backHome}</BackLink>
       <ScreenTitle>{m.tabs.tasks}</ScreenTitle>
 
       {rows.length === 0 ? (

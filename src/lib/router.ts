@@ -6,21 +6,23 @@ import { CATEGORY_ICONS } from './categories'
  * Tiny hash router. Hash URLs work on the Vite dev server, `vite preview` and the Express
  * server without any fallback config, and every screen gets a link you can share or bookmark.
  *
- *   #/                     list + map
- *   #/?cat=school          list filtered by category
+ *   #/                     home: choose what you want to do (help / need help / my tasks)
+ *   #/find                 list + map
+ *   #/find?cat=school      list filtered by category (the older #/?cat=school still works)
  *   #/need/<id>            one need
  *   #/tasks                my tasks
  *   #/post                 partner: post a need
  *   #/about                how it works
  */
 export type Route =
+  | { name: 'home' }
   | { name: 'map'; category: Category | 'all' }
   | { name: 'need'; id: string }
   | { name: 'tasks' }
   | { name: 'post' }
   | { name: 'about' }
 
-export type Tab = 'map' | 'tasks' | 'post' | 'about'
+export type Tab = 'home' | 'map' | 'tasks' | 'post' | 'about'
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#/, '').split('?')
@@ -30,13 +32,17 @@ export function parseHash(hash: string): Route {
   if (parts[0] === 'post') return { name: 'post' }
   if (parts[0] === 'about') return { name: 'about' }
   const cat = new URLSearchParams(query).get('cat')
+  // Links shared before the home page existed (#/?cat=school) still open the filtered list.
+  if (parts[0] !== 'find' && !cat) return { name: 'home' }
   return { name: 'map', category: cat && cat in CATEGORY_ICONS ? (cat as Category) : 'all' }
 }
 
 export function href(route: Route): string {
   switch (route.name) {
+    case 'home':
+      return '#/'
     case 'map':
-      return route.category === 'all' ? '#/' : `#/?cat=${route.category}`
+      return route.category === 'all' ? '#/find' : `#/find?cat=${route.category}`
     case 'need':
       return `#/need/${encodeURIComponent(route.id)}`
     default:

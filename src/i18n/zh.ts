@@ -6,7 +6,7 @@ export const zh: Messages = {
   tagline: '清迈经过核实的需求，与想帮忙的人配对',
   demoBanner: '黑客松演示 · 所有需求、人物和电话号码均为虚构',
   language: '语言',
-  backToMap: '返回地图',
+  backHome: '首页',
 
   modes: {
     title: '模式（管理员）',
@@ -23,6 +23,35 @@ export const zh: Messages = {
     flood: '高于 3.7 米警戒线',
     riverGauge: '滨河 P.1',
     good: '良好',
+  },
+
+  home: {
+    title: '您想做什么？',
+    sub: '选择一项开始。',
+    help: {
+      title: '我想帮忙',
+      who: '任何人 · 不会泰语也可以',
+      body: '选择附近经过核实的任务和方便的时间。',
+      cta: '寻找需求',
+    },
+    ask: {
+      title: '我们需要帮助',
+      who: '学校、寺庙、收容所、社区',
+      body: '用泰语写下您的需求，Claude 会为志愿者生成泰英双语卡片。',
+      cta: '发布需求',
+    },
+    tasks: {
+      title: '我已经报名了',
+      who: '志愿者',
+      body: '查看您的任务、时间和签到码。',
+      cta: '我的任务',
+    },
+    open: (n) => `现有 ${n} 个需求`,
+    joined: (n) => (n === 0 ? '还没有报名' : `已报名 ${n} 个`),
+    hazeUrgent: (n) => `雾霾紧急状态：现在有 ${n} 个紧急需求`,
+    floodUrgent: (n) => `洪水紧急状态：现在有 ${n} 个紧急需求`,
+    helpNow: '立即帮忙',
+    howItWorks: '第一次来？看看如何使用',
   },
 
   tabs: {
@@ -193,6 +222,7 @@ export const zh: Messages = {
   },
 
   titles: {
+    home: '首页',
     map: '寻找需求',
     tasks: '我的任务',
     post: '发布需求',

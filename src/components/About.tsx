@@ -10,7 +10,7 @@ export function About() {
   const { m } = useI18n()
   return (
     <div className="flex flex-col gap-5 p-6">
-      <BackLink href={href({ name: 'map', category: 'all' })}>{m.backToMap}</BackLink>
+      <BackLink href={href({ name: 'home' })}>{m.backHome}</BackLink>
       <ScreenTitle sub={m.about.intro}>{m.about.title}</ScreenTitle>
 
       <ol className="flex flex-col gap-3">

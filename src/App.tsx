@@ -3,6 +3,7 @@ import { About } from './components/About'
 import { Icon } from './components/Icon'
 import { BackLink } from './components/ui'
 import { BottomNav, Header } from './components/Header'
+import { Home } from './components/Home'
 import { MyTasks } from './components/MyTasks'
 import { NeedDetail } from './components/NeedDetail'
 import { NeedList } from './components/NeedList'
@@ -82,7 +83,7 @@ export default function App() {
   const selected = routeNeed && visibleInMode(routeNeed, mode) && !isStale(routeNeed) ? routeNeed : null
 
   useEffect(() => {
-    const page = route.name === 'need' ? routeNeed?.title.en : m.titles[tab]
+    const page = route.name === 'need' ? routeNeed?.title.en : tab === 'home' ? undefined : m.titles[tab]
     document.title = page ? `${page} · ${m.appName}` : `${m.appName} · ${m.appSubtitle}`
   }, [route, routeNeed, tab, m])
 
@@ -116,7 +117,7 @@ export default function App() {
 
   const listRoute = { name: 'map', category: activeCategory } as const
   // One decision per screen: screens that don't use the map get the whole width.
-  const fullWidth = tab === 'tasks' || tab === 'about'
+  const fullWidth = tab === 'home' || tab === 'tasks' || tab === 'about'
 
   return (
     <div className="flex h-full flex-col bg-paper text-ink">
@@ -141,7 +142,15 @@ export default function App() {
             fullWidth ? '' : 'md:w-[520px] md:flex-none md:border-r-2 md:border-line'
           }`}
         >
-          <div className={fullWidth ? 'mx-auto max-w-3xl' : ''}>
+          <div className={tab === 'home' ? 'mx-auto max-w-6xl' : fullWidth ? 'mx-auto max-w-3xl' : ''}>
+          {route.name === 'home' && (
+            <Home
+              mode={mode}
+              openCount={fresh.length}
+              urgentCount={fresh.filter((n) => n.urgent).length}
+              myTaskCount={commitments.length}
+            />
+          )}
           {route.name === 'need' &&
             (selected ? (
               <NeedDetail

@@ -86,7 +86,7 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
 
   return (
     <div className="flex flex-col gap-5 p-6">
-      <BackLink href={href({ name: 'map', category: 'all' })}>{m.backToMap}</BackLink>
+      <BackLink href={href({ name: 'home' })}>{m.backHome}</BackLink>
       <ScreenTitle sub={m.post.intro}>{m.post.title}</ScreenTitle>
 
       {/* One decision per screen: write the need, then check Claude's draft. */}
