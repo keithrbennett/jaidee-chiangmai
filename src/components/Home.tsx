@@ -14,16 +14,28 @@ interface Props {
 
 /**
  * The first screen: one question, three big choices. Each whole card is the button, so there is
- * nothing else to find. Green = helping, orange-red = asking for help (the design rules' colours).
+ * nothing else to find. Blue = helping, black (white in dark mode) = asking for help.
  */
 export function Home({ mode, openCount, urgentCount, myTaskCount }: Props) {
   const { m } = useI18n()
   const find = href({ name: 'map', category: 'all' })
   return (
     <div className="flex flex-col gap-5 px-5 py-6 md:gap-6 md:px-6 md:py-10">
-      <div className="text-center">
-        <h1 className="text-[32px] font-bold leading-tight md:text-[40px]">{m.home.title}</h1>
-        <p className="mt-2 text-xl text-muted">{m.home.sub}</p>
+      {/* The full logo leads the home page: above the question on phones, beside it on wider screens
+          so the three cards still fit on a laptop screen. Transparent on the light page; in dark mode
+          it sits on a white tile, because the dark-blue wordmark would disappear on a dark background. */}
+      <div className="flex flex-col items-center gap-4 text-center md:flex-row md:justify-center md:gap-10 md:text-left">
+        <img
+          src="/logo-full.png"
+          alt="Jaidee CM"
+          width={549}
+          height={440}
+          className="h-24 w-auto dark:rounded-[24px] dark:bg-white dark:p-3 md:h-40 dark:md:p-4"
+        />
+        <div>
+          <h1 className="text-[32px] font-bold leading-tight md:text-[40px]">{m.home.title}</h1>
+          <p className="mt-2 text-xl text-muted">{m.home.sub}</p>
+        </div>
       </div>
 
       {mode !== 'normal' && (
