@@ -97,7 +97,7 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
             onChange={(e) => setText(e.target.value)}
             rows={7}
             placeholder={m.post.placeholder}
-            className="rounded-2xl border-2 border-line bg-card p-4 text-lg placeholder:text-off focus:border-go"
+            className="rounded-[14px] border border-line bg-card p-4 text-[17px] placeholder:text-faint focus:border-go focus:outline-none focus:ring-2 focus:ring-go/30"
           />
           <Button variant="secondary" onClick={() => setText(SAMPLE_TH)} className="self-start">
             {m.post.useSample}
@@ -109,7 +109,7 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
       )}
 
       {error && (
-        <div className="flex gap-3 rounded-2xl border-2 border-urgent bg-urgent-soft p-4 text-urgent">
+        <div className="flex gap-3 rounded-[18px] border border-urgent bg-urgent-soft p-4 text-urgent">
           <Icon name="alert" size={26} /> {error}
         </div>
       )}
@@ -119,7 +119,7 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
           <Pill tone="neutral" icon={CATEGORY_ICONS[draft.category] ?? 'about'}>
             {m.categories[draft.category] ?? draft.category}
           </Pill>
-          <h3 className="mt-2 text-[26px] font-bold leading-tight">{draft.title_en}</h3>
+          <h3 className="mt-2 text-[34px] font-bold leading-tight">{draft.title_en}</h3>
           <p className="text-lg text-muted">{draft.title_th}</p>
           <p className="mt-3">{draft.description_en}</p>
           <p className="mt-1 text-muted">{draft.description_th}</p>
@@ -137,7 +137,7 @@ export function PostNeed({ mapCenter, onAdd }: Props) {
           </dl>
           <p className="mt-3 text-base text-muted">{m.post.draftNote}</p>
           {addedId ? (
-            <div className="mt-4 flex flex-col gap-3 rounded-2xl border-2 border-go bg-go-soft p-4 text-go">
+            <div className="mt-4 flex flex-col gap-3 rounded-[18px] border border-go bg-go-soft p-4 text-go">
               <span className="inline-flex items-center gap-2 font-semibold">
                 <Icon name="check" /> {m.post.added}
               </span>

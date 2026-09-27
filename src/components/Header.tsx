@@ -13,11 +13,11 @@ interface Props {
   myTaskCount: number
 }
 
-// Normal is green; both emergencies use the urgent red from the palette.
+// Segmented control: the selected segment is a white pill; emergencies are red.
 const MODES: { id: Mode; icon: IconName; activeClass: string }[] = [
-  { id: 'normal', icon: 'sun', activeClass: 'border-go bg-go text-white' },
-  { id: 'haze', icon: 'haze', activeClass: 'border-urgent bg-urgent text-white' },
-  { id: 'flood', icon: 'flood', activeClass: 'border-urgent bg-urgent text-white' },
+  { id: 'normal', icon: 'sun', activeClass: 'bg-card text-ink shadow-sm' },
+  { id: 'haze', icon: 'haze', activeClass: 'bg-urgent text-white shadow-sm' },
+  { id: 'flood', icon: 'flood', activeClass: 'bg-urgent text-white shadow-sm' },
 ]
 
 // Home is reached from the logo; it isn't a tab.
@@ -36,75 +36,75 @@ const tabShort = (m: Messages, tab: NavTab) => m.tabs[`${tab}Short`]
 export function Header({ mode, onModeChange, tab, stats, myTaskCount }: Props) {
   const { m } = useI18n()
   return (
-    <header className="border-b-2 border-line bg-card">
-      <div className="flex items-center gap-6 px-6 py-3">
-        <a href={href({ name: 'home' })} className="mr-auto flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-go text-white">
-            <Icon name="heart" size={24} />
-          </span>
-          <span>
-            <span className="block whitespace-nowrap text-2xl font-bold leading-tight">
-              {m.appName} <span className="font-medium text-muted">· {m.appSubtitle}</span>
+    <header className="sticky top-0 z-[1000]">
+      <nav
+        aria-label={m.tabs.mainNav}
+        className="border-b border-line bg-[var(--nav)] backdrop-blur-xl backdrop-saturate-[1.8]"
+      >
+        <div className="flex min-h-13 items-center gap-2 px-6">
+          <a href={href({ name: 'home' })} className="mr-auto flex min-h-11 items-center gap-2">
+            <Icon name="heart" size={22} className="text-go" />
+            <span className="whitespace-nowrap text-[19px] font-semibold">
+              {m.appName} <span className="font-normal text-muted">· {m.appSubtitle}</span>
             </span>
-            <span className="hidden text-base text-muted 2xl:block">{m.tagline}</span>
-          </span>
-        </a>
+          </a>
+          <div className="hidden items-center gap-1 md:flex">
+            {TABS.map((t) => (
+              <a
+                key={t.id}
+                href={href(t.route)}
+                aria-current={tab === t.id ? 'page' : undefined}
+                className={`inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[15px] ${
+                  tab === t.id ? 'bg-paper font-semibold text-ink' : 'text-ink/80 hover:text-ink'
+                }`}
+              >
+                <Icon name={t.icon} size={18} />
+                {tabLabel(m, t.id)}
+                {t.id === 'tasks' && myTaskCount > 0 && <TaskBadge count={myTaskCount} />}
+              </a>
+            ))}
+          </div>
+          <LanguageSwitcher />
+        </div>
+      </nav>
 
-        <nav aria-label={m.tabs.mainNav} className="hidden gap-1 md:flex">
-          {TABS.map((t) => (
-            <a
-              key={t.id}
-              href={href(t.route)}
-              aria-current={tab === t.id ? 'page' : undefined}
-              className={`inline-flex min-h-12 items-center gap-2 whitespace-nowrap rounded-xl px-4 text-lg font-semibold ${
-                tab === t.id ? 'bg-ink text-white' : 'text-ink hover:bg-paper'
-              }`}
-            >
-              <Icon name={t.icon} />
-              {tabLabel(m, t.id)}
-              {t.id === 'tasks' && myTaskCount > 0 && <TaskBadge count={myTaskCount} />}
-            </a>
-          ))}
-        </nav>
-
-        <LanguageSwitcher />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t-2 border-line bg-paper px-6 py-2">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line bg-paper px-6 py-2">
         <div className="flex items-center gap-2" title={m.modes.hint}>
-          <span className="flex items-center gap-1 text-base text-muted">
-            <Icon name="lock" size={18} />
+          <span className="hidden items-center gap-1 text-sm text-muted sm:flex">
+            <Icon name="lock" size={16} />
             {m.modes.title}
           </span>
-          {MODES.map((md) => (
-            <button
-              key={md.id}
-              onClick={() => onModeChange(md.id)}
-              aria-pressed={mode === md.id}
-              aria-label={m.modes.modeLabel(m.modes[md.id])}
-              className={`inline-flex min-h-11 items-center gap-2 rounded-xl border-2 px-3 text-base font-semibold ${
-                mode === md.id ? md.activeClass : 'border-line bg-card text-ink hover:border-muted'
-              }`}
-            >
-              <Icon name={md.icon} size={20} />
-              <span className="hidden sm:inline">{m.modes[md.id]}</span>
-            </button>
-          ))}
+          <div role="group" className="flex rounded-full bg-line/60 p-0.5">
+            {MODES.map((md) => (
+              <button
+                key={md.id}
+                onClick={() => onModeChange(md.id)}
+                aria-pressed={mode === md.id}
+                aria-label={m.modes.modeLabel(m.modes[md.id])}
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-[15px] font-medium ${
+                  mode === md.id ? md.activeClass : 'text-ink/80 hover:text-ink'
+                }`}
+              >
+                <Icon name={md.icon} size={18} />
+                <span className="hidden sm:inline">{m.modes[md.id]}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <StatusBadge mode={mode} />
 
-        <div className="ml-auto hidden gap-6 text-base text-muted xl:flex">
+        <div className="ml-auto hidden gap-5 text-[15px] text-muted xl:flex">
           <span>
-            <b className="text-lg text-ink">{stats.volunteers.toLocaleString()}</b> {m.stats.volunteers}
+            <b className="font-semibold text-ink tabular-nums">{stats.volunteers.toLocaleString()}</b> {m.stats.volunteers}
           </span>
           <span>
-            <b className="text-lg text-ink">{stats.hours.toLocaleString()}</b> {m.stats.hours}
+            <b className="font-semibold text-ink tabular-nums">{stats.hours.toLocaleString()}</b> {m.stats.hours}
           </span>
           {stats.myHours > 0 && (
             <span className="inline-flex items-center gap-1 font-semibold text-go">
-              <Icon name="heart" size={18} />
-              <b>{stats.myHours}</b> {m.stats.mine}
+              <Icon name="heart" size={16} />
+              <b className="tabular-nums">{stats.myHours}</b> {m.stats.mine}
             </span>
           )}
         </div>
@@ -119,19 +119,19 @@ export function BottomNav({ tab, myTaskCount }: { tab: Tab; myTaskCount: number 
   return (
     <nav
       aria-label={m.tabs.mainNav}
-      className="grid grid-cols-4 border-t-2 border-line bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="grid grid-cols-4 border-t border-line bg-[var(--nav)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       {TABS.map((t) => (
         <a
           key={t.id}
           href={href(t.route)}
           aria-current={tab === t.id ? 'page' : undefined}
-          className={`flex min-h-16 flex-col items-center justify-center gap-0.5 text-sm font-semibold ${
+          className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium ${
             tab === t.id ? 'text-go' : 'text-muted'
           }`}
         >
           <span className="relative">
-            <Icon name={t.icon} size={26} />
+            <Icon name={t.icon} size={24} />
             {t.id === 'tasks' && myTaskCount > 0 && (
               <span className="absolute -right-4 -top-1">
                 <TaskBadge count={myTaskCount} />
@@ -147,7 +147,7 @@ export function BottomNav({ tab, myTaskCount }: { tab: Tab; myTaskCount: number 
 
 function TaskBadge({ count }: { count: number }) {
   return (
-    <span className="ml-1 inline-flex min-w-6 items-center justify-center rounded-full bg-ask px-1.5 text-sm font-bold text-white">
+    <span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-urgent px-1.5 text-xs font-semibold text-white">
       {count}
     </span>
   )
@@ -162,15 +162,12 @@ function StatusBadge({ mode }: { mode: Mode }) {
       : mode === 'flood'
         ? ['urgent', <><b>{m.status.riverGauge}: 4.2 m</b> · {m.status.flood}</>]
         : ['go', <><b>AQI 42</b> · {m.status.good}</>]
+  // Apple-style status: a coloured dot and plain text, no box.
   return (
-    <div
-      className={`inline-flex min-h-11 items-center gap-2 rounded-xl border-2 px-3 text-base ${
-        tone === 'urgent' ? 'border-urgent bg-urgent-soft text-urgent' : 'border-go bg-go-soft text-go'
-      }`}
-    >
-      <Icon name={tone === 'urgent' ? 'alert' : 'check'} size={20} />
-      <span>{body}</span>
-      <span className="text-sm opacity-80">{m.status.demo}</span>
+    <div className="inline-flex min-h-10 items-center gap-2 text-[15px]">
+      <span className={`h-2.5 w-2.5 rounded-full ${tone === 'urgent' ? 'bg-urgent' : 'bg-[#30d158]'}`} />
+      <span className={tone === 'urgent' ? 'text-urgent' : 'text-ink'}>{body}</span>
+      <span className="text-sm text-faint">{m.status.demo}</span>
     </div>
   )
 }

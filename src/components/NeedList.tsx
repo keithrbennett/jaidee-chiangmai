@@ -27,11 +27,11 @@ export function NeedList(props: Props) {
     <div className="flex flex-col gap-4 p-6">
       <BackLink href={href({ name: 'home' })}>{m.backHome}</BackLink>
       {mode !== 'normal' && (
-        <div className="flex gap-3 rounded-2xl border-2 border-urgent bg-urgent-soft p-4 text-urgent">
-          <Icon name="alert" size={28} />
+        <div className="flex gap-3 rounded-[18px] bg-card p-5">
+          <Icon name="alert" size={26} className="text-urgent" />
           <div>
-            <b className="text-lg">{mode === 'haze' ? m.list.hazeBanner : m.list.floodBanner}</b>
-            <p className="text-base">{m.list.emergencyExplainer}</p>
+            <b className="text-[19px] font-semibold text-urgent">{mode === 'haze' ? m.list.hazeBanner : m.list.floodBanner}</b>
+            <p className="text-[15px] text-muted">{m.list.emergencyExplainer}</p>
           </div>
         </div>
       )}
@@ -49,7 +49,7 @@ export function NeedList(props: Props) {
       </div>
 
       <div>
-        <h2 className="text-[26px] font-bold leading-tight">{m.list.count(needs.length)}</h2>
+        <h2 className="text-[34px] font-bold leading-tight">{m.list.count(needs.length)}</h2>
         <p className="text-base text-muted">
           {mode === 'normal' ? m.list.sortedByDistance : m.list.sortedByUrgency}
           {locationIsDefault && ` · ${m.list.fromNimman}`}
@@ -75,12 +75,10 @@ export function NeedList(props: Props) {
             <li key={n.id}>
               <a
                 href={href({ name: 'need', id: n.id })}
-                className={`flex gap-4 rounded-2xl border-2 bg-card p-4 hover:border-muted ${
-                  n.urgent ? 'border-urgent' : 'border-line'
-                }`}
+                className="flex gap-4 rounded-[18px] bg-card p-5 transition-shadow hover:shadow-[0_4px_24px_rgb(0_0_0/0.08)]"
               >
                 <span
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
                     n.urgent ? 'bg-urgent-soft text-urgent' : 'bg-go-soft text-go'
                   }`}
                 >
@@ -93,7 +91,7 @@ export function NeedList(props: Props) {
                       {mine && <Pill tone="go" icon="check">{m.list.youreIn}</Pill>}
                     </span>
                   )}
-                  <span className="block text-lg font-bold leading-snug">{n.title.en}</span>
+                  <span className="block text-[19px] font-semibold leading-snug">{n.title.en}</span>
                   <span className="block text-base text-muted">{n.title.th}</span>
                   <span className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-base text-muted">
                     <span className="inline-flex items-center gap-1">
@@ -109,7 +107,7 @@ export function NeedList(props: Props) {
                     </span>
                   </span>
                 </span>
-                <Icon name="forward" size={24} className="self-center text-muted" />
+                <Icon name="forward" size={22} className="self-center text-faint" />
               </a>
             </li>
           )
@@ -126,8 +124,8 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex min-h-11 items-center gap-2 rounded-xl border-2 px-4 text-base font-semibold ${
-        active ? 'border-ink bg-ink text-white' : 'border-line bg-card text-ink hover:border-muted'
+      className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-[15px] font-medium ${
+        active ? 'border-go bg-go text-white' : 'border-line bg-card text-ink hover:border-faint'
       }`}
     >
       {children}

@@ -43,12 +43,12 @@ export function NeedDetail({ need, userLocation, commitments, backHref, onCommit
             </Pill>
           )}
         </div>
-        <h2 className="text-[26px] font-bold leading-tight">{need.title.en}</h2>
+        <h2 className="text-[34px] font-bold leading-tight">{need.title.en}</h2>
         <p className="text-lg text-muted">{need.title.th}</p>
       </div>
 
       <div
-        className={`flex gap-3 rounded-2xl border-2 p-4 ${pending ? 'border-line bg-paper' : 'border-go bg-go-soft'}`}
+        className="flex gap-3 rounded-[18px] bg-card p-5"
       >
         <Icon name={pending ? 'clock' : 'shield'} size={28} className={pending ? 'text-muted' : 'text-go'} />
         <div>
@@ -97,7 +97,7 @@ export function NeedDetail({ need, userLocation, commitments, backHref, onCommit
               {need.impact.done.toLocaleString()} / {need.impact.target.toLocaleString()} {need.impact.metric}
             </span>
           </div>
-          <div className="h-3 overflow-hidden rounded-full border-2 border-line bg-card">
+          <div className="h-2 overflow-hidden rounded-full bg-line/70">
             <div
               className="h-full bg-go"
               style={{ width: `${Math.min(100, (100 * need.impact.done) / need.impact.target)}%` }}
@@ -109,7 +109,7 @@ export function NeedDetail({ need, userLocation, commitments, backHref, onCommit
 
       <Card className="!p-4">
         <div className="mb-1 flex items-center gap-2 font-bold">
-          <Icon name="alert" className="text-ask" /> {m.detail.safetyTitle}
+          <Icon name="alert" className="text-urgent" /> {m.detail.safetyTitle}
         </div>
         <ul className="list-disc pl-6">
           {m.safety[need.category].map((s) => (
@@ -120,8 +120,8 @@ export function NeedDetail({ need, userLocation, commitments, backHref, onCommit
       </Card>
 
       {mine ? (
-        <div className="rounded-2xl border-2 border-go bg-go-soft p-5 text-center">
-          <div className="inline-flex items-center gap-2 text-[26px] font-bold text-go">
+        <div className="rounded-[18px] bg-card p-6 text-center">
+          <div className="inline-flex items-center gap-2 text-[34px] font-bold text-go">
             <Icon name={mine.waitlist ? 'clock' : 'check'} size={30} />
             {mine.waitlist ? m.detail.waitlisted : m.detail.joined}
           </div>
@@ -138,8 +138,8 @@ export function NeedDetail({ need, userLocation, commitments, backHref, onCommit
           {need.slots.map((s) => (
             <label
               key={s.id}
-              className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border-2 bg-card px-4 ${
-                slotId === s.id ? 'border-go bg-go-soft' : 'border-line hover:border-muted'
+              className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-[14px] border bg-card px-4 ${
+                slotId === s.id ? 'border-go ring-1 ring-go' : 'border-line hover:border-faint'
               }`}
             >
               <input
@@ -147,7 +147,7 @@ export function NeedDetail({ need, userLocation, commitments, backHref, onCommit
                 name="slot"
                 checked={slotId === s.id}
                 onChange={() => setSlotId(s.id)}
-                className="h-5 w-5 accent-[#0F5E4C]"
+                className="h-5 w-5 accent-[var(--accent)]"
               />
               <span className="flex-1 font-semibold">{s.label}</span>
               <span className="text-muted">{m.detail.hours(s.hours)}</span>

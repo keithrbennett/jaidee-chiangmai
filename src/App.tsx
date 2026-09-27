@@ -121,6 +121,8 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col bg-paper text-ink">
+      {/* Concept banner, as in the Apple-style prototype: black strip above the nav. */}
+      <div className="bg-inverse px-4 py-2 text-center text-[13px] text-on-inverse-2">{m.demoBanner}</div>
       <Header
         mode={mode}
         onModeChange={(m) => {
@@ -131,15 +133,12 @@ export default function App() {
         stats={stats}
         myTaskCount={commitments.length}
       />
-      <div className="border-b-2 border-line bg-card px-4 py-1 text-center text-base text-muted">
-        {m.demoBanner}
-      </div>
 
       <main className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside
           ref={sidebarRef}
           className={`order-2 min-h-0 flex-1 overflow-y-auto md:order-1 ${
-            fullWidth ? '' : 'md:w-[520px] md:flex-none md:border-r-2 md:border-line'
+            fullWidth ? '' : 'md:w-[520px] md:flex-none md:border-r md:border-line'
           }`}
         >
           <div className={tab === 'home' ? 'mx-auto max-w-6xl' : fullWidth ? 'mx-auto max-w-3xl' : ''}>
@@ -208,9 +207,9 @@ function NeedNotFound({ listHref, expired }: { listHref: string; expired: boolea
   return (
     <div className="flex flex-col gap-5 p-6">
       <BackLink href={listHref}>{m.notFound.seeAll}</BackLink>
-      <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-line bg-card p-8 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-[18px] bg-card p-8 text-center">
         <Icon name={expired ? 'clock' : 'search'} size={48} className="text-muted" />
-        <p className="text-[26px] font-bold">{expired ? m.notFound.expiredTitle : m.notFound.missingTitle}</p>
+        <p className="text-[34px] font-bold">{expired ? m.notFound.expiredTitle : m.notFound.missingTitle}</p>
         <p className="text-muted">{expired ? m.notFound.expiredBody : m.notFound.missingBody}</p>
       </div>
     </div>

@@ -15,13 +15,12 @@ export function About() {
 
       <ol className="flex flex-col gap-3">
         {m.about.steps.map((s, i) => (
-          <li key={i} className="flex gap-4 rounded-2xl border-2 border-line bg-card p-4">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-go-soft text-go">
-              <Icon name={STEP_ICONS[i]} size={28} />
-            </span>
+          <li key={i} className="flex gap-5 rounded-[18px] bg-card p-6">
+            <span className="w-10 shrink-0 text-[44px] font-bold leading-none text-go tabular-nums">{i + 1}</span>
             <div>
-              <div className="text-lg font-bold">
-                {i + 1}. {s.title}
+              <div className="flex items-center gap-2 text-[21px] font-semibold">
+                <Icon name={STEP_ICONS[i]} size={22} className="text-go" />
+                {s.title}
               </div>
               <p className="mt-1 text-muted">{s.body}</p>
             </div>
@@ -29,11 +28,11 @@ export function About() {
         ))}
       </ol>
 
-      <section className="flex gap-3 rounded-2xl border-2 border-urgent bg-urgent-soft p-4">
-        <Icon name="alert" size={28} className="text-urgent" />
+      <section className="flex gap-3 rounded-[18px] bg-inverse p-6 text-on-inverse">
+        <Icon name="alert" size={26} className="text-[#ff453a]" />
         <div>
-          <div className="text-lg font-bold text-urgent">{m.about.modesTitle}</div>
-          <p>{m.about.modesBody}</p>
+          <div className="text-[21px] font-semibold">{m.about.modesTitle}</div>
+          <p className="text-on-inverse-2">{m.about.modesBody}</p>
         </div>
       </section>
 

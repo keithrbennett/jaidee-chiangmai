@@ -27,7 +27,7 @@ export function MyTasks({ commitments, needs, onCancel }: Props) {
       <ScreenTitle>{m.tabs.tasks}</ScreenTitle>
 
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-line bg-card p-8 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-[18px] bg-card p-8 text-center">
           <Icon name="map" size={48} className="text-muted" />
           <p className="text-xl font-bold">{m.tasks.emptyTitle}</p>
           <p className="text-muted">{m.tasks.emptyBody}</p>
@@ -37,23 +37,23 @@ export function MyTasks({ commitments, needs, onCancel }: Props) {
         </div>
       ) : (
         <>
-          <div className="rounded-2xl border-2 border-go bg-go p-5 text-white">
-            <div className="text-base font-semibold uppercase tracking-wide opacity-90">{m.tasks.receiptTitle}</div>
-            <div className="mt-1 text-4xl font-bold">{m.tasks.hours(hours)}</div>
-            <div className="text-lg">{m.tasks.across(confirmed.length)}</div>
-            <div className="mt-2 text-base opacity-90">{m.tasks.receiptNote}</div>
+          <div className="rounded-[18px] bg-inverse p-7 text-on-inverse">
+            <div className="text-[15px] font-semibold text-[#2997ff]">{m.tasks.receiptTitle}</div>
+            <div className="mt-1 text-[48px] font-bold leading-tight tabular-nums">{m.tasks.hours(hours)}</div>
+            <div className="text-[19px]">{m.tasks.across(confirmed.length)}</div>
+            <div className="mt-2 text-[15px] text-on-inverse-2">{m.tasks.receiptNote}</div>
           </div>
 
           <ul className="flex flex-col gap-3">
             {rows.map(({ c, need }) => {
               const slot = need.slots.find((s) => s.id === c.slotId)
               return (
-                <li key={c.needId} className="flex items-start gap-4 rounded-2xl border-2 border-line bg-card p-4">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-go-soft text-go">
+                <li key={c.needId} className="flex items-start gap-4 rounded-[18px] bg-card p-5">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-go-soft text-go">
                     <Icon name={CATEGORY_ICONS[need.category]} size={28} />
                   </span>
                   <div className="flex-1">
-                    <a href={href({ name: 'need', id: need.id })} className="text-lg font-bold hover:underline">
+                    <a href={href({ name: 'need', id: need.id })} className="text-[19px] font-semibold hover:underline">
                       {need.title.en}
                     </a>
                     <div className="text-muted">

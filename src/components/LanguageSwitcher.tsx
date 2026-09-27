@@ -4,7 +4,7 @@ import { Icon } from './Icon'
 
 /** Small inline SVG flags (no emoji: emoji flags also don't render on Windows). */
 function Flag({ lang }: { lang: Lang }) {
-  const common = { width: 28, height: 20, viewBox: '0 0 30 20', className: 'rounded-sm border border-line shrink-0' }
+  const common = { width: 24, height: 16, viewBox: '0 0 30 20', className: 'rounded-[3px] shrink-0' }
   if (lang === 'th')
     return (
       <svg {...common} aria-hidden="true">
@@ -60,7 +60,7 @@ export function LanguageSwitcher() {
         aria-expanded={open}
         aria-label={`${m.language}: ${current.name}`}
         title={m.language}
-        className="inline-flex min-h-12 items-center gap-2 rounded-xl border-2 border-line bg-card px-3 text-lg font-semibold hover:border-muted"
+        className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-[15px] text-ink/80 hover:bg-paper hover:text-ink"
       >
         <Flag lang={current.code} />
         <span className="hidden sm:inline">{current.name}</span>
@@ -70,7 +70,7 @@ export function LanguageSwitcher() {
         <ul
           role="listbox"
           aria-label={m.language}
-          className="absolute right-0 z-[1100] mt-2 w-56 overflow-hidden rounded-2xl border-2 border-line bg-card py-1 shadow-lg"
+          className="absolute right-0 z-[1100] mt-2 w-56 overflow-hidden rounded-[14px] border border-line bg-card py-1 shadow-xl"
         >
           {LANGUAGES.map((l) => (
             <li key={l.code} role="option" aria-selected={l.code === lang} lang={l.htmlLang}>
@@ -79,8 +79,8 @@ export function LanguageSwitcher() {
                   setLang(l.code)
                   setOpen(false)
                 }}
-                className={`flex min-h-12 w-full items-center gap-3 px-4 text-left text-lg hover:bg-paper ${
-                  l.code === lang ? 'font-bold' : ''
+                className={`flex min-h-11 w-full items-center gap-3 px-4 text-left text-[17px] hover:bg-paper ${
+                  l.code === lang ? 'font-semibold' : ''
                 }`}
               >
                 <Flag lang={l.code} />
