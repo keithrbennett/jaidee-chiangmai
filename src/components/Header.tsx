@@ -43,7 +43,8 @@ export function Header({ mode, onModeChange, tab, stats, myTaskCount }: Props) {
       >
         <div className="flex min-h-13 items-center gap-2 px-6">
           <a href={href({ name: 'home' })} className="mr-auto flex min-h-11 items-center gap-2">
-            <Icon name="heart" size={22} className="text-go" />
+            {/* The name follows as text, so the logo image is decorative (empty alt). */}
+            <img src="/logo-mark.png" alt="" width={36} height={36} className="h-9 w-9 rounded-[9px] ring-1 ring-line" />
             <span className="whitespace-nowrap text-[19px] font-semibold">
               {m.appName} <span className="font-normal text-muted">· {m.appSubtitle}</span>
             </span>
