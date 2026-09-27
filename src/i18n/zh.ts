@@ -63,7 +63,7 @@ export const zh: Messages = {
   tabs: {
     map: '寻找需求',
     tasks: '我的任务',
-    post: '合作伙伴：发布需求',
+    post: '发布需求',
     about: '使用说明',
     mapShort: '寻找',
     tasksShort: '我的任务',
@@ -175,24 +175,16 @@ export const zh: Messages = {
 
   post: {
     title: '发布需求',
-    intro: '像在 LINE 上发帖一样用泰语书写即可。Claude 会为你起草一张泰英双语的任务卡片供你检查。',
-    placeholder: '例如：ต้องการอาสา 5 คน ช่วยทาสีห้องเรียน วันเสาร์นี้...',
-    useSample: '使用示例（Noi 老师）',
-    drafting: 'Claude 正在起草…',
-    draft: '让 Claude 起草任务卡片',
-    apiUnreachable: '无法连接 API 服务器。`npm run dev` 是否在运行（它会同时启动网页和 API）？',
-    serverError: (status) => `服务器返回 ${status}`,
-    where: '地点',
-    when: '时间',
-    volunteers: '志愿者人数',
-    skills: '技能',
-    draftNote: '此类别的安全规定会自动添加。在合作伙伴核实之前，该需求会保持“待核实”状态。',
-    added: '已以“待核实”状态添加到当前地图中心位置。',
-    seeIt: '在地图上查看 →',
-    addToMap: '没问题 → 添加到地图（待核实）',
-    edit: '修改文字',
-    placeTbc: '地点待确认',
-    demoPartner: '你（演示合作伙伴）',
+    intro: '用你自己的话说明你需要什么：做什么、在哪里、什么时候、需要几个人。',
+    placeholder: '例如：本周六上午需要 3 个人帮忙搬家具…',
+    useSample: '使用示例',
+    sample:
+      '你好，我是班巴达学校的 Noi 老师。最近灰霾非常严重，我们想把学校图书馆改造成无尘室，让孩子们午休时可以在里面看书。12 月 13 日（星期六）上午 9 点到中午 12 点，需要大约 5 个人帮忙用胶带密封窗户、搬动书架。',
+    submit: '提交',
+    submittedTitle: '已提交',
+    submittedBody: '谢谢。合作伙伴会先核实你的请求，之后附近的志愿者就能看到并提出帮忙。',
+    done: '完成',
+    postAnother: '再发布一个需求',
   },
 
   about: {

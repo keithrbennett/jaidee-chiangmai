@@ -68,7 +68,7 @@ export const en = {
   tabs: {
     map: 'Find a need',
     tasks: 'My tasks',
-    post: 'Partner: post a need',
+    post: 'Post a need',
     about: 'How it works',
     mapShort: 'Find',
     tasksShort: 'My tasks',
@@ -186,25 +186,16 @@ export const en = {
 
   post: {
     title: 'Post a need',
-    intro:
-      'Write in Thai the way you’d post in LINE. Claude drafts a bilingual Thai/English job card for you to check.',
-    placeholder: 'e.g. ต้องการอาสา 5 คน ช่วยทาสีห้องเรียน วันเสาร์นี้...',
-    useSample: 'Use sample (Kru Noi)',
-    drafting: 'Claude is drafting…',
-    draft: 'Draft job card with Claude',
-    apiUnreachable: 'Could not reach the API server. Is `npm run dev` running (it starts both web and API)?',
-    serverError: (status: number) => `Server returned ${status}`,
-    where: 'Where',
-    when: 'When',
-    volunteers: 'Volunteers',
-    skills: 'Skills',
-    draftNote: 'Safety rules for this category are added automatically. The need stays “pending” until a partner verifies it.',
-    added: 'Added to the map at the current map centre as pending verification.',
-    seeIt: 'See it on the map →',
-    addToMap: 'Looks right → add to map (pending verification)',
-    edit: 'Edit the text',
-    placeTbc: 'Location to be confirmed',
-    demoPartner: 'You (demo partner)',
+    intro: 'Say what you need in your own words: what, where, when and how many people.',
+    placeholder: 'e.g. I need 3 people to help move furniture this Saturday morning…',
+    useSample: 'Use a sample',
+    sample:
+      'Hello, this is Kru Noi from Ban Pa Daet School. The dust is very bad at the moment, and we would like to turn the school library into a clean-air room where the children can read at lunchtime. We need about 5 people to help seal the windows with tape and move the bookshelves on Saturday 13 December, 9 am to noon.',
+    submit: 'Submit',
+    submittedTitle: 'Submitted',
+    submittedBody: 'Thank you. A partner will check your request, then volunteers nearby can see it and offer to help.',
+    done: 'Done',
+    postAnother: 'Post another need',
   },
 
   about: {

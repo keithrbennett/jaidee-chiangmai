@@ -22,7 +22,8 @@ export default function App() {
   const { m } = useI18n()
   const [mode, setMode] = useLocalStorage<Mode>('jaidee.mode', 'normal')
   const [commitments, setCommitments] = useLocalStorage<Commitment[]>('jaidee.commitments', [])
-  const [postedNeeds, setPostedNeeds] = useLocalStorage<Need[]>('jaidee.postedNeeds', [])
+  // Needs posted with the earlier Claude flow; the demo "Submit" no longer adds any.
+  const [postedNeeds] = useLocalStorage<Need[]>('jaidee.postedNeeds', [])
   const route = useRoute()
   const tab = tabOf(route)
   const selectedId = route.name === 'need' ? route.id : null
@@ -31,7 +32,6 @@ export default function App() {
   const category = route.name === 'map' ? route.category : listCategory
   const [userLocation, setUserLocation] = useState<LatLng>(DEFAULT_LOCATION)
   const [locationIsDefault, setLocationIsDefault] = useState(true)
-  const [mapCenter, setMapCenter] = useState<LatLng>(CHIANG_MAI_CENTER)
   const sidebarRef = useRef<HTMLElement>(null)
 
   if (route.name === 'map' && route.category !== listCategory) setListCategory(route.category)
@@ -117,7 +117,7 @@ export default function App() {
 
   const listRoute = { name: 'map', category: activeCategory } as const
   // One decision per screen: screens that don't use the map get the whole width.
-  const fullWidth = tab === 'home' || tab === 'tasks' || tab === 'about'
+  const fullWidth = tab === 'home' || tab === 'tasks' || tab === 'post' || tab === 'about'
 
   return (
     <div className="flex h-full flex-col bg-paper text-ink">
@@ -180,19 +180,18 @@ export default function App() {
           {tab === 'tasks' && (
             <MyTasks commitments={commitments} needs={allNeeds} onCancel={cancel} />
           )}
-          {tab === 'post' && <PostNeed mapCenter={mapCenter} onAdd={(n) => setPostedNeeds((prev) => [...prev, n])} />}
+          {tab === 'post' && <PostNeed />}
           {tab === 'about' && <About />}
           </div>
         </aside>
 
-        {/* The map only shows where it's useful: finding needs and placing a new one. */}
+        {/* The map only shows where it's useful: finding needs. */}
         <section className={`order-1 h-[42vh] md:order-2 md:h-auto md:flex-1 ${fullWidth ? 'hidden' : ''}`}>
           <NeedMap
             needs={visible}
             selectedId={selected?.id ?? null}
             onSelect={openNeed}
             userLocation={userLocation}
-            onCenterChange={setMapCenter}
           />
         </section>
       </main>

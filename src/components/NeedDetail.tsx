@@ -162,7 +162,7 @@ export function NeedDetail({ need, userLocation, commitments, backHref, onCommit
   )
 }
 
-/** Every need has its own URL, so a volunteer can send it to a friend or a partner can post it in LINE. */
+/** Every need has its own URL, so a volunteer can send it to a friend or a partner can share it. */
 function ShareButton({ title }: { title: string }) {
   const { m } = useI18n()
   const [copied, setCopied] = useState(false)

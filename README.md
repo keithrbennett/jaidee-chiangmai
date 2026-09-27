@@ -12,7 +12,7 @@ Requires **Node.js 22.12 or newer** (`node -v`; with nvm, `nvm install` picks up
 git clone git@github.com:keithrbennett/jaidee-chiangmai.git
 cd jaidee-chiangmai
 npm install
-cp .env.example .env      # optional: add ANTHROPIC_API_KEY for the Claude feature
+cp .env.example .env      # optional: ANTHROPIC_API_KEY for the server's Claude endpoint (not used by the demo UI yet)
 npm run dev               # web on http://localhost:5173, API on :8787 (proxied as /api)
 ```
 
@@ -22,7 +22,7 @@ Single-port demo build:
 npm run build && npm start   # http://localhost:8787 serves the app and the API
 ```
 
-Everything except "Draft job card with Claude" works without an API key. If you create or edit `.env` while `npm run dev` is running, restart it.
+The whole demo works without an API key. If you create or edit `.env` while `npm run dev` is running, restart it.
 
 ## What's in the demo
 
@@ -33,7 +33,7 @@ Everything except "Draft job card with Claude" works without an API key. If you 
 | **Need detail** | Who verified it and when, English + Thai original, skills, spots left, host-confirmed impact progress, safety rules added automatically per category, slot picker, **I'm in** → check-in code (or waitlist when full). |
 | **Emergency modes** | 🔴 Haze / 🔵 Flood toggle (admin-only in a real build). Shows only crisis needs, urgent first, with an AQI or Ping River P.1 badge (static demo values). |
 | **My tasks** | Your commitments, check-in codes, cancel, and a pledged-hours impact receipt. |
-| **Partner: post a need** | Paste Thai text as you'd write it in LINE → Claude drafts a bilingual job card → add it to the map as *pending verification* (volunteers can't join until a partner verifies). |
+| **Post a need** | Describe the need in your own words, in any of the app's languages (**Use a sample** fills in an example in the selected language) → **Submit** → a *Submitted* confirmation. Demo only: nothing is sent yet, so no API key is needed. |
 
 Every screen has its own URL (hash routes, so no server config is needed): `#/` home, `#/find` list + map, `#/find?cat=school` filtered list (older `#/?cat=school` links still work), `#/need/<id>` one need (with a Share button), `#/tasks`, `#/post`, `#/about` (how it works). The browser back button works, and opening a need link switches to the mode it belongs to. On phones the tabs move to a bottom bar.
 
@@ -47,7 +47,7 @@ State (mode, language, commitments, posted needs) lives in `localStorage`. There
 
 - Vite + React 19 + TypeScript, Tailwind CSS v4
 - Leaflet / react-leaflet with OpenStreetMap tiles (no map API key)
-- `server/index.js`: Express + `@anthropic-ai/sdk`, one endpoint `POST /api/translate-need` using structured JSON output. The API key stays on the server. Model defaults to `claude-sonnet-4-5`; override with `CLAUDE_MODEL`.
+- `server/index.js`: Express + `@anthropic-ai/sdk`, one endpoint `POST /api/translate-need` using structured JSON output (kept for later; the demo's **Submit** doesn't call it yet). The API key stays on the server. Model defaults to `claude-sonnet-4-5`; override with `CLAUDE_MODEL`.
 
 ## Layout
 
@@ -65,4 +65,4 @@ server/index.js           Claude endpoint + serves dist/ in production
 
 ## Deliberately out of scope for the hackathon
 
-LINE login, Nostr-signed verify/check-in/confirm events, real accounts, QR scanning, live AQI and river-level feeds, PWA/offline, donations.
+Social login, Nostr-signed verify/check-in/confirm events, real accounts, QR scanning, live AQI and river-level feeds, PWA/offline, donations.
