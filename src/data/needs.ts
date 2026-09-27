@@ -347,6 +347,28 @@ export const SEED_NEEDS: Need[] = [
     spotsTaken: 1,
   },
   {
+    id: 'coffee-movenpick-hotel',
+    title: { en: 'Bring coffee to the Movenpick Hotel', th: 'ส่งกาแฟให้โรงแรมเมอเวนพิค' },
+    description: {
+      en: 'The hotel has run out of coffee before the breakfast rush. Pick up coffee from a nearby supplier and bring it to the kitchen door. A car or motorbike helps.',
+      th: 'โรงแรมกาแฟหมดก่อนช่วงอาหารเช้า ช่วยรับกาแฟจากร้านใกล้ ๆ แล้วนำมาส่งที่ประตูครัว มีรถยนต์หรือมอเตอร์ไซค์จะช่วยได้มาก',
+    },
+    category: 'environment',
+    modes: ['normal'],
+    urgent: true,
+    lat: 18.7853,
+    lng: 99.0003,
+    place: 'Movenpick Hotel, Chang Klan Rd (Night Bazaar)',
+    partner: 'Movenpick Hotel',
+    verifiedBy: 'Khun Nok',
+    verifiedDaysAgo: 0,
+    hostContact: '053-000-1313',
+    skills: ['Car or motorbike'],
+    slots: [{ id: 's1', label: 'Today · 06:00–07:00', hours: 1 }],
+    spotsTotal: 2,
+    spotsTaken: 0,
+  },
+  {
     id: 'mud-cleanup-charoen-rat',
     title: { en: 'Shovel mud out of flooded homes', th: 'ล้างโคลนบ้านที่โดนน้ำท่วม' },
     description: {
