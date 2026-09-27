@@ -28,7 +28,7 @@ Everything except "Draft job card with Claude" works without an API key. If you 
 
 | Screen | What it shows |
 |---|---|
-| **Home** | One question, "What would you like to do?", and three large cards that are the whole choice: **I want to help** (green, to the list and map), **We need help** (orange-red, to posting a need) and **I've signed up** (to My tasks). During haze or flood mode a red bar above them links straight to the urgent needs. |
+| **Home** | One question, "What would you like to do?", and three large cards that are the whole choice: **I want to help** (green, to the list and map), **I need help** (orange-red, to posting a need; for individuals as well as groups) and **My tasks**. During haze or flood mode a red bar above them links straight to the urgent needs. |
 | **Find a need** | Map + list of verified needs sorted by distance (browser location if shared and near Chiang Mai, otherwise Nimman). Category filter chips. Needs whose verification is older than 14 days are hidden. |
 | **Need detail** | Who verified it and when, English + Thai original, skills, spots left, host-confirmed impact progress, safety rules added automatically per category, slot picker, **I'm in** → check-in code (or waitlist when full). |
 | **Emergency modes** | 🔴 Haze / 🔵 Flood toggle (admin-only in a real build). Shows only crisis needs, urgent first, with an AQI or Ping River P.1 badge (static demo values). |

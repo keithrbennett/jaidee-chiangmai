@@ -35,24 +35,24 @@ export const en = {
     sub: 'Choose one to get started.',
     help: {
       title: 'I want to help',
-      who: 'Anyone · no Thai needed',
+      who: 'Anyone can join',
       body: 'Pick a verified task near you and a time that suits you.',
       cta: 'Find a need',
     },
     ask: {
-      title: 'We need help',
-      who: 'Schools, temples, shelters, communities',
-      body: 'Write what you need in Thai. Claude turns it into a Thai/English card for volunteers.',
+      title: 'I need help',
+      who: 'For me, my family or my group',
+      body: 'Say what you need. Volunteers nearby will see it and offer to help.',
       cta: 'Post a need',
     },
     tasks: {
-      title: "I've signed up",
-      who: 'Volunteers',
-      body: 'See your tasks, times and check-in codes.',
-      cta: 'My tasks',
+      title: 'My tasks',
+      who: "Help I've offered to give",
+      body: 'See where and when to go, with your check-in codes.',
+      cta: 'See my tasks',
     },
     open: (n: number) => `${n} ${n === 1 ? 'need' : 'needs'} open now`,
-    joined: (n: number) => (n === 0 ? 'Nothing joined yet' : `${n} joined`),
+    joined: (n: number) => (n === 0 ? 'No tasks yet' : `${n} ${n === 1 ? 'task' : 'tasks'}`),
     hazeUrgent: (n: number) => `Haze emergency: ${n} urgent ${n === 1 ? 'need' : 'needs'} right now`,
     floodUrgent: (n: number) => `Flood emergency: ${n} urgent ${n === 1 ? 'need' : 'needs'} right now`,
     helpNow: 'Help now',
@@ -226,7 +226,7 @@ export const en = {
     modesBody:
       'During the haze season or a flood the municipality switches the map to crisis needs only: masks, air purifiers, clean rooms, mud clean-up, water and drivers. Urgent needs come first.',
     help: 'I want to help → find a need',
-    needHelp: 'We need help → post a need',
+    needHelp: 'I need help → post a need',
   },
 
   map: {
