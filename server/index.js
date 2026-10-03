@@ -85,9 +85,9 @@ app.post('/api/translate-need', async (req, res) => {
   }
 })
 
-// Live conditions for the header badge: air quality from Air4Thai (Pollution Control Department) and the
-// Ping River level at gauge P.1 (Nawarat Bridge) from Thaiwater. Both are public and need no key. Each
-// source is cached for 10 minutes; if a refresh fails we keep serving the last good reading.
+// Live data: air quality from Air4Thai (Pollution Control Department); river levels and rain gauges from
+// Thaiwater; a rain forecast from Open-Meteo. All public, no keys. Each source is cached for 10 minutes;
+// if a refresh fails we keep serving the last good reading.
 const CONDITIONS_TTL_MS = 10 * 60 * 1000
 const AIR_STATIONS = ['36t', '35t'] // Yupparaj Wittayalai School (city centre), then City Hall as a fallback
 const RIVER_STATION = 'P.1'
@@ -141,25 +141,70 @@ async function fetchAir() {
   throw new Error('No Chiang Mai air station has a current reading')
 }
 
-async function fetchRiver() {
+const CHIANG_MAI_PROVINCE = '50'
+const round2 = (x) => Math.round(x * 100) / 100
+const num = (x) => (x === null || x === undefined || x === '' ? null : Number(x))
+
+/** Every water-level station in Chiang Mai province from Thaiwater: RID gauges (P.*) and other agencies' telemetry. */
+async function fetchGauges() {
   const body = await fetchJson('https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel_load')
-  const row = body.waterlevel_data?.data?.find((r) => r.station?.tele_station_oldcode === RIVER_STATION)
-  if (!row) throw new Error(`Gauge ${RIVER_STATION} not in Thaiwater data`)
-  // Readings are metres above mean sea level; the P.1 gauge reads from its own zero (`offset`), which is
-  // the scale the 3.7 m critical level is quoted in.
-  const { offset, critical_level_m: critical } = row.station
-  const [date, time] = row.waterlevel_datetime.split(' ')
-  return {
-    level: Math.round((Number(row.waterlevel_msl) - offset) * 100) / 100,
-    critical: critical ?? 3.7,
-    observedAt: bangkokIso(date, time),
-    source: 'Thaiwater (RID)',
-  }
+  const rows = body.waterlevel_data?.data?.filter((r) => r.geocode?.province_code === CHIANG_MAI_PROVINCE) ?? []
+  if (!rows.length) throw new Error('No Chiang Mai water-level stations in Thaiwater data')
+  return rows.map((r) => {
+    const s = r.station
+    const msl = num(r.waterlevel_msl)
+    const [date, time] = r.waterlevel_datetime.split(' ')
+    return {
+      code: s.tele_station_oldcode || String(s.id),
+      name: s.tele_station_name?.th?.trim() ?? '',
+      river: r.river_name ?? '',
+      agency: r.agency?.agency_shortname?.en ?? '',
+      lat: s.tele_station_lat,
+      lng: s.tele_station_long,
+      /** Water surface and lowest bank, metres above mean sea level. */
+      levelMsl: msl,
+      bankMsl: num(s.min_bank),
+      // Gauges with their own zero (`offset`, e.g. P.1) also read in metres on that scale, which is the
+      // scale their critical level (3.7 m at P.1) is quoted in.
+      level: msl !== null && s.offset ? round2(msl - s.offset) : null,
+      critical: num(s.critical_level_m),
+      observedAt: bangkokIso(date, time),
+    }
+  })
 }
 
-const conditions = {
+/** Rain gauges in Chiang Mai province from Thaiwater: last hour and last 24 hours, in mm. */
+async function fetchRain() {
+  const body = await fetchJson('https://api-v3.thaiwater.net/api/v1/thaiwater30/public/rain_24h')
+  const rows = body.data?.filter((r) => r.geocode?.province_code === CHIANG_MAI_PROVINCE) ?? []
+  if (!rows.length) throw new Error('No Chiang Mai rain stations in Thaiwater data')
+  return rows.map((r) => {
+    const [date, time] = r.rainfall_datetime.split(' ')
+    return {
+      name: r.station.tele_station_name?.th?.trim() ?? '',
+      agency: r.agency?.agency_shortname?.en ?? '',
+      lat: r.station.tele_station_lat,
+      lng: r.station.tele_station_long,
+      rain1h: num(r.rain_1h),
+      rain24h: num(r.rain_24h),
+      observedAt: bangkokIso(date, time),
+    }
+  })
+}
+
+/** Hourly rain forecast for the city centre from Open-Meteo, next 48 hours, in mm per hour. */
+async function fetchForecast() {
+  const body = await fetchJson(
+    'https://api.open-meteo.com/v1/forecast?latitude=18.79&longitude=98.99&hourly=precipitation&forecast_hours=48&timezone=Asia%2FBangkok',
+  )
+  return body.hourly.time.map((t, i) => ({ time: `${t}:00+07:00`, mm: body.hourly.precipitation[i] }))
+}
+
+const feeds = {
   air: { value: null, fetchedAt: 0, pending: null, load: fetchAir },
-  river: { value: null, fetchedAt: 0, pending: null, load: fetchRiver },
+  gauges: { value: null, fetchedAt: 0, pending: null, load: fetchGauges },
+  rain: { value: null, fetchedAt: 0, pending: null, load: fetchRain },
+  forecast: { value: null, fetchedAt: 0, pending: null, load: fetchForecast },
 }
 
 /** Cached reading for one source; refreshes when stale and falls back to the last good value (or null). */
@@ -172,7 +217,7 @@ async function reading(entry) {
       entry.fetchedAt = Date.now()
     })
     .catch((err) => {
-      console.error('conditions refresh failed:', err.message)
+      console.error('feed refresh failed:', err.message)
       entry.fetchedAt = Date.now() - CONDITIONS_TTL_MS + 60_000 // try again in a minute, not on every request
     })
     .finally(() => {
@@ -183,8 +228,23 @@ async function reading(entry) {
 }
 
 app.get('/api/conditions', async (_req, res) => {
-  const [air, river] = await Promise.all([reading(conditions.air), reading(conditions.river)])
+  const [air, gauges] = await Promise.all([reading(feeds.air), reading(feeds.gauges)])
+  const p1 = gauges?.find((g) => g.code === RIVER_STATION)
+  const river =
+    p1 && p1.level !== null
+      ? { level: p1.level, critical: p1.critical ?? 3.7, observedAt: p1.observedAt, source: 'Thaiwater (RID)' }
+      : null
   res.set('Cache-Control', 'public, max-age=60').json({ air, river })
+})
+
+// Everything the flood simulator page shows live: river gauges, rain gauges and the rain forecast.
+app.get('/api/flood', async (_req, res) => {
+  const [gauges, rain, forecast] = await Promise.all([
+    reading(feeds.gauges),
+    reading(feeds.rain),
+    reading(feeds.forecast),
+  ])
+  res.set('Cache-Control', 'public, max-age=60').json({ gauges, rain, forecast })
 })
 
 // Serve the production build if it exists (npm run build && npm start).

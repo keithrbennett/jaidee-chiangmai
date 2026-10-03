@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { LANGUAGES, useI18n, type Lang, type Messages } from '../i18n'
-import { aqiBand, useConditions, type AirReading, type RiverReading } from '../lib/conditions'
+import { useI18n, type Messages } from '../i18n'
+import { aqiBand, formatObserved, useConditions, type AirReading, type RiverReading } from '../lib/conditions'
 import type { IconName } from '../lib/icons'
 import { href, type Route, type Tab } from '../lib/router'
 import type { Mode } from '../types'
@@ -30,6 +30,7 @@ const TABS: { id: NavTab; route: Route; icon: IconName }[] = [
   { id: 'map', route: { name: 'map', category: 'all' }, icon: 'map' },
   { id: 'tasks', route: { name: 'tasks' }, icon: 'tasks' },
   { id: 'post', route: { name: 'post' }, icon: 'post' },
+  { id: 'flood', route: { name: 'flood' }, icon: 'flood' },
   { id: 'about', route: { name: 'about' }, icon: 'about' },
 ]
 
@@ -124,7 +125,7 @@ export function BottomNav({ tab, myTaskCount }: { tab: Tab; myTaskCount: number 
   return (
     <nav
       aria-label={m.tabs.mainNav}
-      className="grid grid-cols-4 border-t border-line bg-[var(--nav)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      className="grid grid-cols-5 border-t border-line bg-[var(--nav)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       {TABS.map((t) => (
         <a
@@ -220,19 +221,4 @@ function StatusBadge({ mode }: { mode: Mode }) {
       </span>
     </div>
   )
-}
-
-/** "23:00" for a reading from today, "3 Oct 23:00" for an older one; always Chiang Mai time. */
-function formatObserved(iso: string, lang: Lang) {
-  const tz = 'Asia/Bangkok'
-  const locale = LANGUAGES.find((l) => l.code === lang)?.htmlLang
-  const date = new Date(iso)
-  const day = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: tz })
-  const today = day(date) === day(new Date())
-  return date.toLocaleString(locale, {
-    timeZone: tz,
-    hour: '2-digit',
-    minute: '2-digit',
-    ...(today ? {} : { day: 'numeric', month: 'short' }),
-  })
 }

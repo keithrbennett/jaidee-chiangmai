@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LANGUAGES, type Lang } from '../i18n'
 
 /** Air quality in Chiang Mai from Air4Thai, on the Thai AQI scale. Shape matches GET /api/conditions. */
 export interface AirReading {
@@ -64,4 +65,19 @@ export function useConditions() {
   }, [])
 
   return conditions
+}
+
+/** "23:00" for a reading from today, "3 Oct 23:00" for an older one; always Chiang Mai time. */
+export function formatObserved(iso: string, lang: Lang) {
+  const tz = 'Asia/Bangkok'
+  const locale = LANGUAGES.find((l) => l.code === lang)?.htmlLang
+  const date = new Date(iso)
+  const day = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: tz })
+  const today = day(date) === day(new Date())
+  return date.toLocaleString(locale, {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(today ? {} : { day: 'numeric', month: 'short' }),
+  })
 }

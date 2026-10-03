@@ -12,6 +12,7 @@ import { CATEGORY_ICONS } from './categories'
  *   #/need/<id>            one need
  *   #/tasks                my tasks
  *   #/post                 partner: post a need
+ *   #/flood                flood simulator 3D
  *   #/about                how it works
  */
 export type Route =
@@ -20,9 +21,10 @@ export type Route =
   | { name: 'need'; id: string }
   | { name: 'tasks' }
   | { name: 'post' }
+  | { name: 'flood' }
   | { name: 'about' }
 
-export type Tab = 'home' | 'map' | 'tasks' | 'post' | 'about'
+export type Tab = 'home' | 'map' | 'tasks' | 'post' | 'flood' | 'about'
 
 export function parseHash(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#/, '').split('?')
@@ -30,6 +32,7 @@ export function parseHash(hash: string): Route {
   if (parts[0] === 'need' && parts[1]) return { name: 'need', id: decodeURIComponent(parts[1]) }
   if (parts[0] === 'tasks') return { name: 'tasks' }
   if (parts[0] === 'post') return { name: 'post' }
+  if (parts[0] === 'flood') return { name: 'flood' }
   if (parts[0] === 'about') return { name: 'about' }
   const cat = new URLSearchParams(query).get('cat')
   // Links shared before the home page existed (#/?cat=school) still open the filtered list.

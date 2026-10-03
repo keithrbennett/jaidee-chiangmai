@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { About } from './components/About'
 import { Icon } from './components/Icon'
 import { BackLink } from './components/ui'
@@ -17,6 +17,9 @@ import { isStale, newCheckInCode, spotsLeft, visibleInMode } from './lib/needs'
 import { href, navigate, tabOf, useRoute } from './lib/router'
 import { useLocalStorage } from './lib/useLocalStorage'
 import type { Category, Commitment, Mode, Need } from './types'
+
+// MapLibre and the flood model are big; load them only when someone opens the simulator.
+const FloodSim = lazy(() => import('./components/FloodSim'))
 
 export default function App() {
   const { m } = useI18n()
@@ -117,7 +120,7 @@ export default function App() {
 
   const listRoute = { name: 'map', category: activeCategory } as const
   // One decision per screen: screens that don't use the map get the whole width.
-  const fullWidth = tab === 'home' || tab === 'tasks' || tab === 'post' || tab === 'about'
+  const fullWidth = tab === 'home' || tab === 'tasks' || tab === 'post' || tab === 'about' || tab === 'flood'
 
   return (
     <div className="flex h-full flex-col bg-paper text-ink">
@@ -135,6 +138,12 @@ export default function App() {
       />
 
       <main className="flex min-h-0 flex-1 flex-col md:flex-row">
+        {route.name === 'flood' ? (
+          <Suspense fallback={<p className="p-6 text-muted">{m.flood.loading}</p>}>
+            <FloodSim needs={allNeeds} />
+          </Suspense>
+        ) : (
+        <>
         <aside
           ref={sidebarRef}
           className={`order-2 min-h-0 flex-1 overflow-y-auto md:order-1 ${
@@ -194,6 +203,8 @@ export default function App() {
             userLocation={userLocation}
           />
         </section>
+        </>
+        )}
       </main>
 
       <BottomNav tab={tab} myTaskCount={commitments.length} />
