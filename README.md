@@ -31,7 +31,7 @@ The whole demo works without an API key. If you create or edit `.env` while `npm
 | **Home** | One question, "What would you like to do?", and three large cards that are the whole choice: **I want to help** (green, to the list and map), **I need help** (orange-red, to posting a need; for individuals as well as groups) and **My tasks**. During haze or flood mode a red bar above them links straight to the urgent needs. |
 | **Find a need** | Map + list of verified needs sorted by distance (browser location if shared and near Chiang Mai, otherwise Nimman). Category filter chips. Needs whose verification is older than 14 days are hidden. |
 | **Need detail** | Who verified it and when, English + Thai original, skills, spots left, host-confirmed impact progress, safety rules added automatically per category, slot picker, **I'm in** → check-in code (or waitlist when full). |
-| **Emergency modes** | 🔴 Haze / 🔵 Flood toggle (admin-only in a real build). Shows only crisis needs, urgent first, with an AQI or Ping River P.1 badge (static demo values). |
+| **Emergency modes** | 🔴 Haze / 🔵 Flood toggle (admin-only in a real build). Shows only crisis needs, urgent first, with a live AQI or Ping River P.1 badge (see *Live conditions* below). |
 | **My tasks** | Your commitments, check-in codes, cancel, and a pledged-hours impact receipt. |
 | **Post a need** | Describe the need in your own words, in any of the app's languages (**Use a sample** fills in an example in the selected language) → **Submit** → a *Submitted* confirmation. Demo only: nothing is sent yet, so no API key is needed. |
 
@@ -48,6 +48,18 @@ State (mode, language, commitments, posted needs) lives in `localStorage`. There
 - Vite + React 19 + TypeScript, Tailwind CSS v4
 - Leaflet / react-leaflet with OpenStreetMap tiles (no map API key)
 - `server/index.js`: Express + `@anthropic-ai/sdk`, one endpoint `POST /api/translate-need` using structured JSON output (kept for later; the demo's **Submit** doesn't call it yet). The API key stays on the server. Model defaults to `claude-sonnet-4-5`; override with `CLAUDE_MODEL`.
+- `GET /api/conditions` in the same server: live conditions for the header badge (see below)
+
+## Live conditions
+
+The status badge next to the mode switch shows real readings, fetched by the server and cached for 10 minutes (no API keys):
+
+- **Air (Normal and Haze modes):** Air4Thai, Pollution Control Department, station 36t Yupparaj Wittayalai School (35t City Hall if 36t has no reading). Thai AQI scale and wording: 0–25 very good, 26–50 good, 51–100 moderate, 101–200 starting to affect health, 201+ affects health. Haze mode adds PM2.5.
+- **River (Flood mode):** Thaiwater (data from the Royal Irrigation Department), gauge P.1 at Nawarat Bridge, in metres on the gauge's own scale, against its 3.7 m critical level.
+
+The emergency modes still pick which needs are shown; the badge always shows the real reading, so Haze mode on a clear day shows good air. Hover the badge for the source, station and time. If the server can't reach a source it keeps the last good reading; if the browser can't reach the server at all, the badge falls back to fixed demo values marked *(demo)*.
+
+`air4thai.pcd.go.th` sends the wrong intermediate certificates, so `server/certs/air4thai-intermediates.pem` adds the right Let's Encrypt ones for that host only (TLS verification stays on). If Air4Thai's certificate changes and the air reading starts failing, check the server log.
 
 ## Layout
 
@@ -60,9 +72,10 @@ src/
   lib/categories.ts       category colours, emoji, 14-day TTL (names + safety rules are in i18n/)
   lib/needs.ts            verification / spots helpers
   components/             Header (+ mobile BottomNav), NeedMap, NeedList, NeedDetail, MyTasks, PostNeed, About
-server/index.js           Claude endpoint + serves dist/ in production
+server/index.js           Claude endpoint, live conditions, serves dist/ in production
+src/lib/conditions.ts     useConditions() + Thai AQI bands for the header badge
 ```
 
 ## Deliberately out of scope for the hackathon
 
-Social login, Nostr-signed verify/check-in/confirm events, real accounts, QR scanning, live AQI and river-level feeds, PWA/offline, donations.
+Social login, Nostr-signed verify/check-in/confirm events, real accounts, QR scanning, PWA/offline, donations.

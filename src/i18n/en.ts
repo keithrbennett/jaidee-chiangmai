@@ -30,10 +30,13 @@ export const en = {
 
   status: {
     demo: '(demo)',
-    haze: 'Unhealthy',
-    flood: 'above 3.7 m warning',
     riverGauge: 'Ping River P.1',
-    good: 'Good',
+    /** Thai AQI bands (Pollution Control Department wording), 0–25 … 201+. */
+    aqi: ['Very good', 'Good', 'Moderate', 'Starting to affect health', 'Affects health'],
+    riverBelow: (m: number) => `below ${m} m critical level`,
+    riverAbove: (m: number) => `above ${m} m critical level`,
+    asOf: (time: string) => `as of ${time}`,
+    source: (source: string, place: string, time: string) => `${source} · ${place} · ${time}`,
   },
 
   home: {

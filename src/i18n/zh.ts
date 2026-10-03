@@ -25,10 +25,12 @@ export const zh: Messages = {
 
   status: {
     demo: '（演示）',
-    haze: '不健康',
-    flood: '高于 3.7 米警戒线',
     riverGauge: '滨河 P.1',
-    good: '良好',
+    aqi: ['非常好', '良好', '中等', '开始影响健康', '影响健康'],
+    riverBelow: (m) => `低于 ${m} 米警戒线`,
+    riverAbove: (m) => `高于 ${m} 米警戒线`,
+    asOf: (time) => `${time} 数据`,
+    source: (source, place, time) => `${source} · ${place} · ${time}`,
   },
 
   home: {

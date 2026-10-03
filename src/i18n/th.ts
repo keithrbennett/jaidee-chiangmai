@@ -25,10 +25,12 @@ export const th: Messages = {
 
   status: {
     demo: '(เดโม)',
-    haze: 'มีผลต่อสุขภาพ',
-    flood: 'เกินระดับเตือนภัย 3.7 ม.',
     riverGauge: 'แม่น้ำปิง P.1',
-    good: 'ดี',
+    aqi: ['ดีมาก', 'ดี', 'ปานกลาง', 'เริ่มมีผลกระทบต่อสุขภาพ', 'มีผลกระทบต่อสุขภาพ'],
+    riverBelow: (m) => `ต่ำกว่าระดับวิกฤต ${m} ม.`,
+    riverAbove: (m) => `เกินระดับวิกฤต ${m} ม.`,
+    asOf: (time) => `ข้อมูลเวลา ${time}`,
+    source: (source, place, time) => `${source} · ${place} · ${time}`,
   },
 
   home: {

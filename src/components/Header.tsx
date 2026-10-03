@@ -1,4 +1,6 @@
-import { useI18n, type Messages } from '../i18n'
+import type { ReactNode } from 'react'
+import { LANGUAGES, useI18n, type Lang, type Messages } from '../i18n'
+import { aqiBand, useConditions, type AirReading, type RiverReading } from '../lib/conditions'
 import type { IconName } from '../lib/icons'
 import { href, type Route, type Tab } from '../lib/router'
 import type { Mode } from '../types'
@@ -156,21 +158,81 @@ function TaskBadge({ count }: { count: number }) {
   )
 }
 
+// Used only when /api/conditions can't be reached (offline demo); shown with a "(demo)" label.
+const demoAir = (haze: boolean): AirReading => ({
+  aqi: haze ? 187 : 42,
+  pm25: haze ? 112 : null,
+  station: { en: '', th: '' },
+  observedAt: '',
+  source: '',
+})
+const DEMO_RIVER: RiverReading = { level: 4.2, critical: 3.7, observedAt: '', source: '' }
+
+// Dot colours follow the Thai AQI scale: blue, green, yellow, orange, red.
+const AQI_DOT = ['bg-[#5ac8fa]', 'bg-[#30d158]', 'bg-[#ffd60a]', 'bg-[#ff9f0a]', 'bg-urgent']
+
 function StatusBadge({ mode }: { mode: Mode }) {
-  const { m } = useI18n()
-  // Static demo values. A real build would pull AQI from Air4Thai / IQAir and river level from the P.1 gauge.
-  const [tone, body] =
-    mode === 'haze'
-      ? ['urgent', <><b>AQI 187</b> · {m.status.haze} · PM2.5 112 µg/m³</>]
-      : mode === 'flood'
-        ? ['urgent', <><b>{m.status.riverGauge}: 4.2 m</b> · {m.status.flood}</>]
-        : ['go', <><b>AQI 42</b> · {m.status.good}</>]
+  const { m, lang } = useI18n()
+  const conditions = useConditions()
+
+  let dot: string, urgent: boolean, body: ReactNode, reading: AirReading | RiverReading, place: string
+  if (mode === 'flood') {
+    const river = conditions?.river ?? DEMO_RIVER
+    urgent = river.level >= river.critical
+    dot = urgent ? 'bg-urgent' : 'bg-[#30d158]'
+    body = (
+      <>
+        <b>
+          {m.status.riverGauge}: {river.level.toFixed(2)} m
+        </b>{' '}
+        · {urgent ? m.status.riverAbove(river.critical) : m.status.riverBelow(river.critical)}
+      </>
+    )
+    reading = river
+    place = m.status.riverGauge
+  } else {
+    const air = conditions?.air ?? demoAir(mode === 'haze')
+    const band = aqiBand(air.aqi)
+    urgent = band >= 3
+    dot = AQI_DOT[band]
+    body = (
+      <>
+        <b>AQI {air.aqi}</b> · {m.status.aqi[band]}
+        {mode === 'haze' && air.pm25 !== null && <> · PM2.5 {air.pm25} µg/m³</>}
+      </>
+    )
+    reading = air
+    place = lang === 'th' ? air.station.th : air.station.en
+  }
+
+  const live = reading.observedAt !== ''
+  const time = live ? formatObserved(reading.observedAt, lang) : ''
   // Apple-style status: a coloured dot and plain text, no box.
   return (
-    <div className="inline-flex min-h-10 items-center gap-2 text-[15px]">
-      <span className={`h-2.5 w-2.5 rounded-full ${tone === 'urgent' ? 'bg-urgent' : 'bg-[#30d158]'}`} />
-      <span className={tone === 'urgent' ? 'text-urgent' : 'text-ink'}>{body}</span>
-      <span className="text-sm text-faint">{m.status.demo}</span>
+    <div
+      className="inline-flex min-h-10 items-center gap-2 text-[15px]"
+      title={live ? m.status.source(reading.source, place, time) : undefined}
+    >
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
+      <span className={urgent ? 'text-urgent' : 'text-ink'}>{body}</span>
+      <span className={`text-sm text-faint ${live ? 'hidden sm:inline' : ''}`}>
+        {live ? m.status.asOf(time) : m.status.demo}
+      </span>
     </div>
   )
+}
+
+/** "23:00" for a reading from today, "3 Oct 23:00" for an older one; always Chiang Mai time. */
+function formatObserved(iso: string, lang: Lang) {
+  const tz = 'Asia/Bangkok'
+  const locale = LANGUAGES.find((l) => l.code === lang)?.htmlLang
+  const date = new Date(iso)
+  const day = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: tz })
+  const today = day(date) === day(new Date())
+  return date.toLocaleString(locale, {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(today ? {} : { day: 'numeric', month: 'short' }),
+  })
 }
