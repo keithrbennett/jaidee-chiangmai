@@ -42,18 +42,28 @@ export default function MapView({ bounds, center, zoom, pitch = 50, bearing = -1
   useEffect(() => {
     const { theme: t, lang: l } = latest.current
     const cam = initial.current
+    // Maps open flat and a little further out, then tilt into 3D as they load, like a flyover. Not for people
+    // who asked for less motion.
+    const glide = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const map = new maplibregl.Map({
       container: el.current!,
       style: mapStyle(t, l as MapLang),
       bounds: cam.bounds,
       fitBoundsOptions: { padding: 24 },
       center: cam.bounds ? undefined : cam.center,
-      zoom: cam.bounds ? undefined : cam.zoom,
-      pitch: cam.pitch,
-      bearing: cam.bearing,
+      zoom: cam.bounds ? undefined : cam.zoom !== undefined && glide ? cam.zoom - 0.5 : cam.zoom,
+      pitch: glide ? 0 : cam.pitch,
+      bearing: glide ? 0 : cam.bearing,
       maxPitch: 85,
       attributionControl: { compact: true },
     })
+    if (glide) {
+      map.once('load', () => {
+        // Someone who already moved the map keeps their view.
+        if (map.getPitch() !== 0) return
+        map.easeTo({ pitch: cam.pitch, bearing: cam.bearing, ...(cam.bounds || cam.zoom === undefined ? {} : { zoom: cam.zoom }), duration: 1600, easing: (x) => 1 - (1 - x) ** 3 })
+      })
+    }
     if (cam.controls) map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
     map.on('style.load', () => latest.current.onStyle?.(map))
     // On small maps the credits would cover the legend: show them first, then fold them behind the (i) button.
