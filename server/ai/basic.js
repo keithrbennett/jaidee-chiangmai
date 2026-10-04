@@ -12,6 +12,7 @@ const MISSING = /(คนหาย|หาคน|ตามหา|พลัดห�
 const LOST = /(ของหาย|สัตว์หาย|หมาหาย|แมวหาย|เก็บได้|lost and found|lost my|found a|丢失|捡到)/i
 const REPORT = /(รายงาน|แจ้งระดับน้ำ|แจ้งน้ำท่วม|ส่งรูป|report|上报|报告)/i
 const VOLUNTEER = /(อาสา|volunteer|志愿)/i
+const CONTACTS = /(เบอร์|โทรหา|เบอร์โทร|โรงพยาบาล|สถานีตำรวจ|ดับเพลิง|phone number|hotline|hospital|police station|电话|医院|警察局)/i
 const ALERTS = /(แจ้งเตือน|เตือนภัย|notify|notification|alert|提醒|预警)/i
 const STATUS = /(ท่วมไหม|ท่วมมั้ย|ท่วมหรือยัง|สถานการณ์|ตอนนี้|วันนี้|ระดับน้ำ|น้ำขึ้น|เป็นยังไง|เป็นอย่างไร|ปลอดภัยไหม|เป็นไง|status|situation|how is|how's|now|today|level|safe|情况|现在|今天|水位|安全|怎么样|如何)/i
 const HOW = /(ทำยังไง|ทำอย่างไร|ควรทำ|เตรียม|วิธี|how to|how do|what should|prepare|怎么办|怎么做|该做什么|准备)/i
@@ -59,12 +60,14 @@ const T = {
     missing: 'แจ้งคนหายกับศูนย์ประสานงานของจังหวัดได้ ข้อมูลจะเห็นเฉพาะเจ้าหน้าที่ ไม่เผยแพร่ค่ะ ถ้าเห็นคนถูกน้ำพัด โทร 1669 หรือ 191 ทันที',
     lost: 'ประกาศของหายหรือสัตว์เลี้ยงหาย และดูของที่มีคนเก็บได้ ในหน้าของหายของจังหวัดค่ะ ระวังคนขอให้โอนเงินก่อนคืนของ ใจดีไม่มีการเก็บเงิน',
     report: 'ช่วยรายงานระดับน้ำตรงที่คุณอยู่ได้ใน 3 ขั้น: ตำแหน่ง ระดับน้ำ และรูป (ถ้ามี) น้องใจดีจะเทียบกับสถานีวัดน้ำใกล้เคียงให้ค่ะ',
+    contacts: (p) => `เบอร์ฉุกเฉินของ${p} มีทั้งสายด่วนที่ต่อไปยังหน่วยในพื้นที่ โรงพยาบาล สถานีตำรวจ และดับเพลิงที่ใกล้คุณ เรื่องด่วนโทร 1669 หรือ 1784 ได้เลยค่ะ`,
+    contactsWhere: 'อยู่จังหวัดไหนคะ พิมพ์ชื่อจังหวัด หรือกดใช้ตำแหน่งของฉัน แล้วน้องใจดีจะหาเบอร์โรงพยาบาลและสถานีตำรวจใกล้ ๆ ให้ เรื่องด่วนโทร 1669 หรือ 1784 ได้เลยค่ะ',
     volunteer: 'ดูงานอาสาที่เจ้าหน้าที่ตรวจแล้ว หรือโพสต์ความต้องการอาสาได้ที่หน้าอาสาค่ะ',
     alerts: 'เปิดรับแจ้งเตือนบนเครื่องนี้ได้ เลือกจังหวัด ชนิดภัย และระดับที่อยากรู้ค่ะ บน iPhone ต้องเพิ่มใจดีไปที่หน้าจอโฮมก่อน',
     statusWhere: 'อยากรู้สถานการณ์ที่จังหวัดไหนคะ พิมพ์ชื่อจังหวัด หรือกดใช้ตำแหน่งของฉัน แล้วถามใหม่ได้เลย',
     guide: (title) => `นี่คือสรุปเรื่อง **${title}** ค่ะ ดูขั้นตอนทั้งหมดในการ์ดด้านล่าง`,
     hello: 'น้องใจดีตอนนี้ทำงานแบบพื้นฐานค่ะ ถามได้เรื่อง สถานการณ์ในจังหวัด วิธีเตรียมตัวและรับมือภัย หรือขอความช่วยเหลือ ลองพิมพ์ เช่น "เชียงใหม่น้ำท่วมไหม" หรือ "ถ้าแผ่นดินไหวต้องทำยังไง"',
-    b: { call: (n) => `โทร ${n}`, help: 'ขอความช่วยเหลือ', missing: 'แจ้งคนหาย', lost: 'ของหาย', report: 'รายงานระดับน้ำ', volunteer: 'หน้าอาสา', alerts: 'รับแจ้งเตือน', province: 'ดูหน้าจังหวัด', map: 'ดูแผนที่', guides: 'คู่มือรับมือภัย', weather: 'ฝนและฝุ่น' },
+    b: { call: (n) => `โทร ${n}`, contacts: 'เบอร์ฉุกเฉินในจังหวัด', help: 'ขอความช่วยเหลือ', missing: 'แจ้งคนหาย', lost: 'ของหาย', report: 'รายงานระดับน้ำ', volunteer: 'หน้าอาสา', alerts: 'รับแจ้งเตือน', province: 'ดูหน้าจังหวัด', map: 'ดูแผนที่', guides: 'คู่มือรับมือภัย', weather: 'ฝนและฝุ่น' },
   },
   en: {
     photo: "น้องใจดี can't look at photos right now (AI isn't connected). If it shows flooding where you are, send it as a water report so others see it on the map.",
@@ -75,12 +78,14 @@ const T = {
     missing: "Report a missing person to the province's coordination centre; only staff see it, it is never published. If you see someone swept away, call 1669 or 191 now.",
     lost: "Post a lost item or pet, or look through things people found, on the province's lost-and-found page. Beware anyone who asks for money before returning something: Jaidee never charges.",
     report: 'Report the water where you are in 3 steps: place, depth and a photo if you can. น้องใจดี compares it with nearby gauges.',
+    contacts: (p) => `${p}'s emergency numbers: hotlines that route to the local office, and the nearest hospitals, police and fire stations. If it's urgent, call 1669 or 1784 now.`,
+    contactsWhere: "Which province are you in? Type its name or tap 'use my location' and I'll find hospitals and police nearby. If it's urgent, call 1669 or 1784 now.",
     volunteer: 'See volunteer tasks checked by staff, or post a need, on the volunteer page.',
     alerts: 'Turn on alerts on this device for the provinces, hazards and level you care about. On iPhone, add Jaidee to your Home Screen first.',
     statusWhere: 'Which province would you like to know about? Type its name or tap "use my location", then ask again.',
     guide: (title) => `Here is **${title}**: the full steps are in the card below.`,
     hello: 'น้องใจดี is in basic mode right now. Ask about conditions in a province, how to prepare for or handle a hazard, or how to get help. Try "Is Chiang Mai flooded?" or "What do I do in an earthquake?"',
-    b: { call: (n) => `Call ${n}`, help: 'Ask for help', missing: 'Report missing', lost: 'Lost & found', report: 'Report water', volunteer: 'Volunteer', alerts: 'Get alerts', province: 'Province page', map: 'Open map', guides: 'Safety guides', weather: 'Rain & dust' },
+    b: { call: (n) => `Call ${n}`, contacts: 'Emergency numbers', help: 'Ask for help', missing: 'Report missing', lost: 'Lost & found', report: 'Report water', volunteer: 'Volunteer', alerts: 'Get alerts', province: 'Province page', map: 'Open map', guides: 'Safety guides', weather: 'Rain & dust' },
   },
   zh: {
     photo: 'Nong Jaidee 目前还不能看图片（未连接 AI）。如果是您所在位置的洪水照片，可以作为水位报告发送，让大家在地图上看到。',
@@ -91,12 +96,14 @@ const T = {
     missing: '可向该府协调中心报告失踪人员，只有工作人员可见，不会公开。如看到有人被水冲走，请立即拨打 1669 或 191。',
     lost: '在该府的失物招领页面发布丢失物品或宠物，或查看别人捡到的东西。小心归还前要求付款的人：Jaidee 从不收费。',
     report: '三步报告您所在位置的水位：位置、深度、照片（如有）。น้องใจดี 会与附近水位站对比。',
+    contacts: (p) => `${p}的紧急电话：会转接到当地机构的热线，以及附近的医院、警察局和消防站。紧急情况请立即拨打 1669 或 1784。`,
+    contactsWhere: '您在哪个府？输入府名或点击“使用我的位置”，我会帮您找附近的医院和警察局。紧急情况请立即拨打 1669 或 1784。',
     volunteer: '在志愿者页面查看工作人员核实过的任务，或发布需求。',
     alerts: '在此设备上开启提醒，选择关心的府、灾害类型和级别。iPhone 需先把 Jaidee 添加到主屏幕。',
     statusWhere: '您想了解哪个府？输入府名或点击“使用我的位置”，然后再问一次。',
     guide: (title) => `这是 **${title}** 的要点，完整步骤见下方卡片。`,
     hello: 'น้องใจดี 目前为基础模式。可以询问各府情况、如何防灾应对，或如何求助。例如：“清迈有洪水吗？”或“地震时该怎么办？”',
-    b: { call: (n) => `拨打 ${n}`, help: '求助', missing: '报告失踪', lost: '失物招领', report: '报告水位', volunteer: '志愿者', alerts: '开启提醒', province: '查看本府', map: '打开地图', guides: '防灾指南', weather: '降雨与粉尘' },
+    b: { call: (n) => `拨打 ${n}`, contacts: '紧急电话', help: '求助', missing: '报告失踪', lost: '失物招领', report: '报告水位', volunteer: '志愿者', alerts: '开启提醒', province: '查看本府', map: '打开地图', guides: '防灾指南', weather: '降雨与粉尘' },
   },
 }
 
@@ -169,6 +176,9 @@ export async function runBasic({ turns, lang, province, location }, emit) {
   } else if (has(REPORT, text) && !has(STATUS, text)) {
     say(t.report)
     buttons([p ? page(t.b.report, 'report', { province: p }) : page(t.b.province, 'provinces')])
+  } else if (has(CONTACTS, text)) {
+    say(p ? t.contacts(pName) : t.contactsWhere)
+    buttons([p && page(t.b.contacts, 'contacts', { province: p }), call('1669'), call('1784'), call('191')])
   } else if (has(VOLUNTEER, text)) {
     say(t.volunteer)
     buttons([page(t.b.volunteer, 'volunteer')])

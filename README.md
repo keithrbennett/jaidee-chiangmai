@@ -1,6 +1,6 @@
 # Jaidee · แผนที่ช่วยกัน
 
-Thailand's public hazard information in one place, on colourful 3D maps: rivers against their banks, rain and radar, dust (PM2.5), fire hotspots from satellite, flooded areas seen by radar satellites, earthquakes and tsunami risk, and what people see on the ground. A warning engine turns those feeds into plain-language alerts for each province and can send them to your phone. Every one of the 77 provinces has its own page. Where a province opens a coordination centre, people can ask for help and report missing relatives, and staff send rescue teams and follow them on the map. Volunteers find tasks that staff have checked, and the flood simulator shows which Chiang Mai streets go under first.
+Thailand's public hazard information in one place, on colourful 3D maps: rivers against their banks, rain and radar, dust (PM2.5), fire hotspots from satellite, flooded areas seen by radar satellites, earthquakes and tsunami risk, and what people see and photograph on the ground. A warning engine turns those feeds into plain-language alerts for each province and can send them to your phone. Every one of the 77 provinces has its own page with its emergency numbers, nearest hospitals and police. **น้องใจดี**, an AI helper, answers questions in any language, looks things up, checks what the public sends, and helps people ask for help. Where a province opens a coordination centre, people can ask for help and report missing relatives, and staff send rescue teams and follow them on the map. Volunteers find tasks that staff have checked, and the 3D flood simulator shows which streets go under first, in any province.
 
 In danger? Call **1784** (disaster, DDPM) or **1669** (medical).
 
@@ -20,21 +20,29 @@ The first start creates the admin from `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Sign
 
 `GISTDA_API_KEY` (free from [api-gateway.gistda.or.th](https://api-gateway.gistda.or.th)) turns on fire hotspots and satellite flood areas; without it those parts stay empty and everything else works. It is used by the server only: GISTDA echoes the key in its response links, so raw GISTDA responses are never passed to browsers. Web Push needs VAPID keys; leave `VAPID_*` empty and the server creates `data/vapid.json` on first start.
 
+`ANTHROPIC_API_KEY` turns on น้องใจดี's AI (see below). Without it the chat answers in basic mode and the checks on public posts use rules only. `CLAUDE_MODEL` picks the model (default `claude-opus-5-5`; `claude-sonnet-5-5` or `claude-haiku-4-5` cost less), `AI_DAILY_LIMIT` caps calls per day (default 3000, then basic mode until midnight Bangkok time), `AI_WEB_SEARCH=0` turns off web search in the chat.
+
+Keep the project out of folders that iCloud (or another cloud drive) syncs, such as Desktop and Documents with "Desktop & Documents Folders" on: offloaded files in `node_modules` stall the server and make git very slow.
+
 ## What's in it
 
 | Page | What it does |
 |---|---|
-| **Thailand today** `#/` | One chip per hazard (flood, heavy rain, landslide, PM2.5, fire, earthquake, tsunami) coloured by the highest alert anywhere, the hazard map, the most serious alerts, headline numbers (rivers over the bank, full dams, fire hotspots, strongest quake, satellite flood area, coordination centres), and quick actions that find your province from your location. |
-| **Map** `#/map` | Full-screen 3D globe with one hazard at a time, so it reads at a glance: **Water** (gauges as coloured dots, labels from zoom 8, dams, flooded cells from satellite, reports, shelters, cameras) · **Rain** (gauge heatmap and radar) · **Dust** (stations as AQI circles) · **Fire** (VIIRS hotspots, heat map plus dots that fade with age) · **Earthquake** (circles sized by magnitude, coloured by age; the view pulls back to the region). Provinces are tinted by what needs attention in that mode; tap one to open it. |
-| **Alerts** `#/alerts` | Every alert now, by hazard, with the rule that raised it and a link to the official agency; turn on alerts for chosen provinces, hazards and level on this device. |
+| **Thailand today** `#/` | First what people come for in a crisis: **ask for help** (call buttons first, then the province's help form), **report the water** with a photo, **emergency numbers**, **around me**. Then the day in one sentence ("danger in 19 provinces · mostly floods"), the box to ask น้องใจดี or find a province, a chip per hazard, the hazard map (tap a province for its pop-up), the most serious alerts and headline numbers. |
+| **Map** `#/map` | Full-screen 3D globe with one hazard at a time: **Water** (gauges as coloured dots, dams, flooded cells from satellite, reports, shelters, cameras) · **Rain** (gauge heatmap and radar) · **Dust** (AQI circles) · **Fire** (VIIRS hotspots, fading with age) · **Earthquake** (circles by magnitude and age). Tap a province, or search, to open its panel: its own map, actions (help, report, call, 3D simulation), today's state, alerts and emergency numbers. `#/map?p=<slug>` opens a province. |
+| **Alerts** `#/alerts` | Provinces by level as a bar and a map of Thailand, then every alert as a compact row grouped by hazard, your own provinces first; filter by hazard and level; alert sign-up and the rules beside. |
+| **น้องใจดี** (every page) | The AI helper: a sheet on phones, a panel on desktops. See below. |
+| **Report the water** (sheet) | Photo first (camera), the place from GPS with its sub-district name, the depth picked from pictures of a person standing in water, optional trend and note. With AI on, น้องใจดี can estimate the depth from the photo. After sending, the page shows what the check found. |
+| **Be ready** `#/guide` | 14 safety guides (floods before, during and after; electricity; go-bag; evacuation; people who need extra care; health; landslides; PM2.5; wildfires; earthquakes; tsunamis; storms) from Thai government advice, with who to call. `src/data/guides.json`, shared with น้องใจดี. |
 | **Provinces** `#/provinces` | All 77, by region, with how many gauges are over the bank or high. |
-| **Province** `#/p/<slug>` | Tabs: Overview · Map · Rain & dust · From the ground · Get help. The overview shows the province's overall level, its alerts, six hazard cards (rivers, rain, dust, fire, earthquake, satellite flood), the coordination centre or the emergency numbers, *is there flooding near me?* (location or sub-district, computed on the device), every gauge against its bank, dams, alert sign-up and agency links. |
+| **Province** `#/p/<slug>` | Tabs: Overview · Map · Rain & dust · From the ground · Emergency numbers · Get help. The overview opens with the day in one sentence and four actions, then the alerts, hazard tiles with small charts (gauges by status, the next 24 h of rain, an AQI dial), photos people sent, *is there flooding near me?*, every gauge drawn against its bank, dams, and the rest. |
+| `…/contacts` | National lines that put you through to the local office (with the right power company and, on coasts, NDWC), the coordination centre, numbers the province's staff add, and the nearest hospitals, police and fire stations from OpenStreetMap with call and directions. |
 | `…/map` `…/weather` `…/area` | Province hazard map (same five modes; satellite flood cells in Water) · 3-day forecast, 48-hour rain with the heaviest hour spelled out, radar (replay 2 h), 4-day PM2.5 outlook and AQI stations · districts coloured by the highest level reported in 24 h. |
-| `…/report` `…/updates` | Report a water level in 3 steps (GPS, a pin, or a pasted Google Maps / LINE link; 6 levels in cm; trend; can vehicles pass; photo with location data stripped) · the feed, with "still flooded" / "gone down". Points fade steadily and leave the map after 48 h. |
+| `…/report` `…/updates` | The photo-first report, starting in this province · the feed, with what each report's check found and "still flooded" / "gone down". Points fade steadily and leave the map after 48 h; reports that don't match the data around them are drawn fainter. |
 | `…/lost-found` `…/missing` `…/help` `…/open` `…/cctv` | Lost and found board (scam warning; the poster can close it from their device) · missing people (to the coordination centre only, never published) · help requests with a code to follow progress · agencies asking for a coordination centre · agency camera stills. Help and missing-person forms only open where a coordination centre is active; elsewhere the page shows the emergency numbers, so no request waits unread. |
-| **Coordination centre** `#/command` | Staff: help requests on a map with status and team assignment, teams with a tracking link for their phone (`#/track/<token>`), missing people, shelters, volunteer needs to check and publish, report moderation, opening or closing the centre. Admins: accounts and agency requests. |
-| **Volunteer** `#/volunteer` | Needs that staff have checked, on a map; post a need (checked before it is listed). |
-| **Flood simulator 3D** `#/flood` | See below. |
+| **Coordination centre** `#/command` | Staff: help requests on a map with status, urgency and a Thai summary (and translation) from น้องใจดี, team assignment, teams with a tracking link for their phone (`#/track/<token>`), missing people (translated), shelters, volunteer needs (pre-drafted cards), reports with what the check found and posts held for review, the province's phone numbers, opening or closing the centre. Admins: accounts and agency requests. |
+| **Volunteer** `#/volunteer` | Tasks that staff have checked, as cards and on a map (all, urgent, near me); post a need. With nothing listed, ways to help right now. |
+| **Flood simulator 3D** `#/flood` | Any province. See below. |
 | **Data sources** `#/sources` | What comes from where, and what isn't connected yet. |
 
 Thai, English and 简体中文 throughout (`src/i18n/`; `en.ts` is the source and `th.ts` / `zh.ts` must have every key or the build fails). Light and dark, on phones and desktops.
@@ -54,6 +62,9 @@ All public; only GISTDA needs a (free) key. Fetched by the server and cached (5 
 | RainViewer | Radar tiles (free tiles stop at zoom 7) |
 | OpenFreeMap (OpenStreetMap), AWS Terrain Tiles | Base map, 3D buildings, terrain and hillshade (`src/lib/map/style.ts`) |
 | OCHA COD-AB (Royal Thai Survey Dept., CC BY-IGO), geoBoundaries (CC BY 4.0) | Province, district and sub-district names and outlines: `python3 scripts/build_admin_geo.py` writes `public/geo/` and `src/data/provinces.ts` |
+| OpenStreetMap via Overpass (ODbL) | Hospitals, police and fire stations (and DDPM offices) per province with the phone numbers mappers recorded: snapshot in `public/geo/p/<code>/places.json` (`node scripts/build_osm_places.mjs`), refreshed by the server weekly (`server/contacts.js`) |
+| OpenFreeMap vector tiles (OpenMapTiles schema) | Rivers, canals, sea and lakes for the flood simulator |
+| Anthropic Claude (optional) | น้องใจดี: chat, photo reading, checks and translation |
 
 Not connected yet: RID telerid live readings (need an account from RID), DWR telemetry (no published API), TMD weather warnings and DMR landslide warnings (no open feed), NDWC tsunami bulletins (no open feed; alerts link to ndwc.disaster.go.th).
 
@@ -73,17 +84,39 @@ Not connected yet: RID telerid live readings (need an account from RID), DWR tel
 
 **Push:** `public/sw.js` and Web Push (`server/push.js`, VAPID). People pick provinces, hazards and a minimum level on `#/alerts` or a province page; the server sends each new alert once, in the language they chose, and drops subscriptions the browser has ended. On iPhone, Web Push works only after *Add to Home Screen* (iOS 16.4+); the page says so.
 
+## น้องใจดี (the AI helper)
+
+`server/ai/`. A chat on every page, streamed (`POST /api/assistant`, server-sent events), in whatever language the person writes: Thai, English, Chinese, Burmese, Lao, Karen …
+
+- **Tools over our own data** (`server/ai/assistant.js`): find a place (province, district, sub-district), a province's state (alerts, gauges, dams, rain and forecast, air and PM2.5 outlook, fires, quakes, satellite flood, the coordination centre, shelters, public reports), the area around a shared location, Thailand as a whole, emergency numbers and nearest hospitals, and the safety guides. It never guesses figures; it says how old a reading is.
+- **Beyond the site**: everyday and general questions from its own knowledge (health basics, paperwork after a disaster, writing or translating a message …), and Claude's web search for current news and announcements (when the organisation has it on), with sources shown.
+- **Photos**: people can send one; it judges water depth and danger, reads signs and documents, and can turn a flood photo into a water report for the map (`draft_report`).
+- **Doing things**: one-tap buttons for pages and hotlines (only numbers it knows: national lines, a centre's hotline, numbers from the contacts tool), and help requests drafted in Thai for staff, which the person checks and sends.
+- **Safety**: life-threatening situations get 1669 / 1784 / 191 first; it never tells anyone to wade through moving water; our alerts are not official warnings.
+- **Basic mode** (`server/ai/basic.js`) answers from keywords in Thai, English and Chinese with live data and the guides when there is no key, the day's budget is spent, or Claude can't be reached.
+
+**Checks on what the public sends** (`server/ai/checks.js`), rules first, then the model when on:
+
+| What | Check |
+|---|---|
+| Water reports | Compared with the nearest gauges, rain, satellite flooding within 1 km, other reports within 1 km and "still flooded" votes: *matches data nearby* / *not confirmed yet* / *doesn't match*. Rivers alone never sink a report (streets flood from drains). The model also looks at the photo (water? depth fits? a screenshot or news photo?). Abuse, spam or personal data holds the report for staff. |
+| Lost and found | Requests for transfers or deposits, short links, bank account formats: a warning on the post. ID numbers hold it for staff. |
+| Help requests | Urgency 1-3 from the form (and the model may only raise it), a one-line Thai summary, and a Thai and English translation of notes in other languages. |
+| Missing people | Translation into Thai for staff. |
+| Volunteer needs | A drafted card for staff to check, and a warning on posts that ask for money. |
+
+Nothing is deleted by the model: the most it does is hold a post (`hidden = 2`) for staff to look at.
+
 ## Flood simulator
 
-`#/flood`. A planning tool, not a forecast; the page says so.
+`#/flood`, then a province. A planning tool, not a forecast; the page says so.
 
-- **Model:** the local inertial form of the shallow water (Saint-Venant) equations on a regular grid (Bates, Horritt & Fewtrell 2010, the scheme behind LISFLOOD-FP), with Manning friction, a Froude ≤ 1 limit and a no-overdraw limit for stability on noisy terrain. It runs in a Web Worker on about 135 000 cells of 36 m covering the city from Ring Road 3 to the edge of Saraphi (`src/lib/flood/solver.ts`). A typical run reaches ×400–×700 real time; the page shows the speed actually reached.
+- **Where:** a square about 13 km across (about 130 000 cells of 36 m) around a river gauge in the province (nearest the provincial city first), the city centre, or the person's location. `GET /api/flood/:code` gives the province's gauges, rain, forecast, city and these spots.
+- **Model:** the local inertial form of the shallow water (Saint-Venant) equations on a regular grid (Bates, Horritt & Fewtrell 2010, the scheme behind LISFLOOD-FP), with Manning friction, a Froude ≤ 1 limit and a no-overdraw limit for stability on noisy terrain. It runs in a Web Worker (`src/lib/flood/solver.ts`). A typical run reaches ×400–×700 real time; the page shows the speed actually reached.
 - **Ground:** Terrarium terrain tiles (SRTM) at zoom 12, with roofs and trees taken out by a morphological opening and single-cell pits filled (`groundFromSurface`). SRTM in town is still metres out, so depths are a guide to which streets flood first, not exact figures.
-- **River:** the Ping centre line from OpenStreetMap (`src/data/pingRiver.ts`). Channel cells take the height of the land beside them (30th percentile within 110 m, smoothed along the river) as their bank; the river is held at that bank + (P.1 level − 3.7 m), so it spills where the terrain allows once P.1 passes its critical level. The river never runs out of water, so long runs show the most a level can flood. `BANK_PERCENTILE` in `grid.ts` is the main thing to tune against a real flood (October 2024).
+- **Water:** rivers and canals (lines and areas), the sea and lakes from the OpenStreetMap vector tiles the map already uses (zoom 13), laid onto the grid (`rasterizeWater`). Channel cells take the height of the land beside them (30th percentile within 110 m, carried into wide rivers from their edges, smoothed along the network) as their bank; every channel is held at that bank + how far the chosen gauge is above its own bank, so rivers spill where the terrain allows once the gauge passes its bank. The sea takes whatever reaches it; lakes are not counted as flooding. The river never runs out of water, so long runs show the most a level can flood. One gauge drives all channels in the square. `BANK_PERCENTILE` in `grid.ts` is the main thing to tune against a real flood.
 - **Rain and drains:** rain falls evenly on the area; drains are one figure in mm per hour removed from any wet cell. There is no pipe network yet (no SWMM) because the drain data is not public.
 - **Not here yet:** CCTV (needs a feed from the municipality), HEC-RAS or SWMM runs (would need a built model on a server), LiDAR terrain for real street-level depths.
-
-`GET /api/flood` returns the gauges and rain gauges of Chiang Mai province and the city's hourly rain forecast.
 
 ## Layout
 
@@ -96,20 +129,28 @@ server/
   hazards.js               GISTDA (fire, satellite flood), TMD + USGS earthquakes, PM2.5 forecast
   alerts.js                warning rules → alerts per province
   push.js                  Web Push: VAPID keys, sending new alerts every 5 min
-  routes/data.js           /api/national, /api/province/:code, /api/rain, /api/air, /api/cctv, /api/flood
+  contacts.js, osm.js      emergency numbers per province; OSM hospitals, police, fire stations
+  ai/                      น้องใจดี: claude.js (client, budget), assistant.js (agent and tools), basic.js
+                           (no-key answers), context.js (data for tools), checks.js (checks on public posts)
+  routes/data.js           /api/national, /api/province/:code, /api/rain, /api/air, /api/cctv, /api/contacts/:code, /api/flood/:code
+  routes/assistant.js      /api/assistant (chat, streamed), /api/assistant/estimate (depth from a photo)
   routes/hazards.js        /api/alerts, /api/hazards, /api/satflood/:code, /api/push/*
   routes/community.js      reports, lost and found, missing people, help requests, needs, shelters
   routes/command.js        staff API and team tracking
 src/
   App.tsx, lib/router.ts   hash routes
   components/pages/        Thailand today, map, provinces, volunteer, coordination centre, sources
-  components/alerts/       alert cards, alerts page, subscribe panel
-  components/province/     the province pages
+  components/alerts/       alert cards, alerts page, the SVG map of Thailand, subscribe panel
+  components/assistant/    น้องใจดี: the launcher, chat panel, orb, ask box, message formatting
+  components/report/       the photo-first water report
+  components/contacts/     emergency numbers for a province
+  components/province/     the province pages, the province pop-up (ProvinceSheet), hazard widgets
   components/map/MapView   MapLibre map (lazy-loaded) in our style
   lib/map/                 style, data layers (dots, heatmaps, radar, hotspots, quakes …), hazard modes, popups
   lib/flood/               flood simulator: grid, solver, worker, feeds, map
-scripts/                   build_admin_geo.py
-public/geo/                provinces, districts, sub-districts
+scripts/                   build_admin_geo.py, build_osm_places.mjs
+public/geo/                provinces, districts, sub-districts, OSM emergency places
+src/data/guides.json       the safety guides (shared with the server)
 ```
 
 ## Privacy and safety
@@ -119,3 +160,4 @@ public/geo/                provinces, districts, sub-districts
 - Missing-person reports and help requests are visible only to staff of that province (and admins); the public help status page shows progress, not personal details.
 - The camera proxy only fetches cameras on the agency list, and never private network addresses.
 - API keys (GISTDA, VAPID private key, Claude) stay on the server. Push subscriptions store only the browser's push endpoint and the chosen provinces, hazards and language.
+- น้องใจดี: conversations are not stored or logged on our server; the browser keeps the chat for the tab only. A location is sent only after the person taps "use my location", and only with that question. What goes to Anthropic: the conversation, a shared location's place name, an attached photo; for checks, the text of reports and posts, report photos, and the evidence around a report. The model never sees reporters' IP hashes, and it never deletes anything.

@@ -254,6 +254,7 @@ const PROVINCE_PAGES: Record<string, Section | null> = {
   lost_found: 'lost-found',
   cctv: 'cctv',
   area: 'area',
+  contacts: 'contacts',
 }
 
 /** Where a chat button goes: tel: for calls, a hash route for pages. */
@@ -267,7 +268,7 @@ export function buttonHref(b: ChatButton): string | null {
     case 'home':
       return href({ name: 'home' })
     case 'map':
-      return href({ name: 'map', mode: b.mode as MapMode | undefined })
+      return href({ name: 'map', mode: b.mode as MapMode | undefined, province: b.province ? provinceByCode.get(b.province) : undefined })
     case 'alerts':
       return href({ name: 'alerts' })
     case 'provinces':
@@ -277,7 +278,7 @@ export function buttonHref(b: ChatButton): string | null {
     case 'volunteer':
       return href({ name: 'volunteer' })
     case 'simulator':
-      return href({ name: 'flood' })
+      return href({ name: 'flood', province: b.province ? provinceByCode.get(b.province) : undefined })
     default:
       return null
   }

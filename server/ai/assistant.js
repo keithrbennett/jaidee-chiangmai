@@ -16,7 +16,7 @@ import { MODEL, anthropic } from './claude.js'
 import { provinceContacts } from '../contacts.js'
 import { GUIDES, HOTLINES, TOPICS, bkk, findPlace, guideText, km, nationalSummary, nearbySummary, placeAt, provinceName, provinceSummary } from './context.js'
 
-export const PAGES = ['home', 'map', 'alerts', 'provinces', 'guide', 'volunteer', 'simulator', 'province', 'province_map', 'weather', 'report', 'updates', 'help', 'missing', 'lost_found', 'cctv', 'area']
+export const PAGES = ['home', 'map', 'alerts', 'provinces', 'guide', 'volunteer', 'simulator', 'province', 'province_map', 'weather', 'report', 'updates', 'help', 'missing', 'lost_found', 'cctv', 'area', 'contacts']
 export const MAP_MODES = ['water', 'rain', 'air', 'fire', 'quake']
 export const VULNERABLE = ['elderly', 'children', 'disabled', 'sick', 'pregnant', 'bedridden']
 export const HELP_NEEDS = ['evacuate', 'food', 'water', 'medicine', 'medical']
@@ -110,7 +110,7 @@ const TOOLS = [
   {
     name: 'show_buttons',
     description:
-      'Show up to 4 one-tap buttons under your reply: call a hotline, or open a page of the site. Pages: home, map (with a mode: water, rain, air, fire, quake), alerts (and alert sign-up), provinces, guide (with a topic), volunteer, simulator (Chiang Mai 3D flood simulator), and for a province: province (overview), province_map, weather (rain and dust), report (send a water level), updates (reports from people), help (ask for help), missing (report a missing person), lost_found, cctv, area (districts).',
+      'Show up to 4 one-tap buttons under your reply: call a hotline, or open a page of the site. Pages: home, map (with a mode: water, rain, air, fire, quake; with a province it opens that province\'s panel), alerts (and alert sign-up), provinces, guide (with a topic), volunteer, simulator (3D flood simulator, for a province if given), and for a province: province (overview), province_map, weather (rain and dust), report (send a water level with a photo), updates (reports from people), help (ask for help), contacts (emergency numbers, hospitals, police), missing (report a missing person), lost_found, cctv, area (districts).',
     input_schema: {
       type: 'object',
       properties: {
@@ -204,6 +204,7 @@ function cleanButtons(list, ctx) {
     } else if (b.action === 'page' && PAGES.includes(b.page)) {
       const province = b.province && provinceName(b.province) ? b.province : null
       const needsProvince = !['home', 'map', 'alerts', 'provinces', 'guide', 'volunteer', 'simulator'].includes(b.page)
+      // Province pages need one; the map and the simulator may take one.
       const p = province ?? (needsProvince ? ctx.province ?? ctx.locationProvince : null)
       if (needsProvince && !p) continue
       out.push({

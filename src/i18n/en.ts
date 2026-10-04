@@ -758,6 +758,8 @@ export const en = {
       ['Hydro-Informatics Institute (HII), Thaiwater', 'Gauges of other agencies (EGAT, National Parks), rain gauges nationwide (incl. DWR), large dams, storms, CCTV list.'],
       ['Pollution Control Department, Air4Thai', 'Air quality (Thai AQI, PM2.5).'],
       ['GISTDA', 'Fire hotspots from the VIIRS satellite (24 h), and flooded areas from Sentinel-1 radar (7 days).'],
+      ['OpenStreetMap', 'Hospitals, police and fire stations in each province with the phone numbers volunteers mapped; rivers, canals and the sea for the 3D flood simulator.'],
+      ['Anthropic Claude', 'น้องใจดี, the AI helper: answers, photo reading, checks on public reports and translation. Optional; without it the chat runs in basic mode.'],
       ['Thai Meteorological Department, USGS', 'Earthquakes in the region; USGS adds the tsunami flag.'],
       ['CAMS via Open-Meteo', 'PM2.5 forecast for each province, 4 days.'],
       ['Open-Meteo', 'Rain forecast for each province (hourly 48 h, daily 3 days).'],
