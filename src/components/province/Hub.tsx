@@ -1,17 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { useI18n } from '../../i18n'
 import type { Station } from '../../lib/api'
 import { aqiBand } from '../../lib/conditions'
 import { next24 } from '../../lib/forecast'
 import { loadTambons, useGeo, type Tambon } from '../../lib/geo'
 import type { IconName } from '../../lib/icons'
-import { provinceHref } from '../../lib/router'
+import { href, provinceHref } from '../../lib/router'
 import { clock } from '../../lib/time'
 import { useGeolocation, useLocale } from '../../lib/ui'
 import { ALERT_COLOR, AQI_COLOR, LEVEL_COLOR, RAIN_CLASSES, STATUS_COLOR, STATUS_ORDER, damColor, isReceded, km, quakeColor, rainClass, stationStatus } from '../../lib/water'
 import { AlertList, AlertSubscribe } from '../alerts/Alerts'
 import { Icon } from '../Icon'
-import { EmergencyNumbers, GeoMessage, Loading, SectionTitle, StationRow, Tile, inputCls } from '../kit'
+import { Disclosure, EmergencyNumbers, GeoMessage, ListRow, Loading, SectionTitle, StationRow, inputCls } from '../kit'
 import { ProvinceHeader, type ProvinceProps } from './ProvincePage'
 
 const NEAR_KM = 3
@@ -55,6 +55,7 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
         <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
           <HazardCard
             href={p('map')}
+            i={1}
             icon="flood"
             color={over ? STATUS_COLOR.over : high ? STATUS_COLOR.high : STATUS_COLOR.normal}
             level={alertLevel('flood')}
@@ -64,6 +65,7 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
           />
           <HazardCard
             href={p('weather')}
+            i={2}
             icon="cloud"
             color={RAIN_CLASSES[Math.max(0, rainClass(rain24?.total ?? 0))].color}
             level={Math.max(alertLevel('rain'), alertLevel('landslide'))}
@@ -73,6 +75,7 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
           />
           <HazardCard
             href={p('weather')}
+            i={3}
             icon="air"
             color={worstAir ? AQI_COLOR[aqiBand(worstAir.aqi)] : '#8e8e93'}
             level={alertLevel('air')}
@@ -82,6 +85,7 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
           />
           <HazardCard
             href={p('map')}
+            i={4}
             icon="fire"
             color={fires.length >= 40 ? '#ff3b30' : fires.length >= 10 ? '#ff9500' : fires.length ? '#ffcc00' : '#34c759'}
             level={alertLevel('fire')}
@@ -91,6 +95,7 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
           />
           <HazardCard
             href={p('map')}
+            i={5}
             icon="quake"
             color={quake ? quakeColor(quake.at) : '#34c759'}
             level={Math.max(alertLevel('quake'), alertLevel('tsunami'))}
@@ -100,6 +105,7 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
           />
           <HazardCard
             href={p('map')}
+            i={6}
             icon="wave"
             color={satKm2 ? '#0a84ff' : '#34c759'}
             level={0}
@@ -112,7 +118,7 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
 
       <section className="grid gap-3 md:grid-cols-2">
         {center?.active ? (
-          <div className="flex flex-col gap-3 rounded-[22px] bg-[#34c759]/12 p-5">
+          <div className="rise flex flex-col gap-3 rounded-[22px] bg-[#34c759]/12 p-5">
             <p className="flex items-center gap-2 text-lg font-bold text-[#248a3d]">
               <Icon name="lifebuoy" />
               {center.name ? m.province.centerOpen(center.name) : m.province.centerOpenDefault}
@@ -132,7 +138,7 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-2 rounded-[22px] bg-card p-5">
+          <div className="rise flex flex-col gap-2 rounded-[22px] bg-card p-5">
             <p className="text-lg font-bold">{m.province.centerClosed}</p>
             <p className="text-muted">{m.province.centerClosedSub}</p>
             <div className="mt-1 flex flex-wrap gap-2">
@@ -147,7 +153,7 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
             </a>
           </div>
         )}
-        <a href={p('report')} className="group flex flex-col justify-between gap-3 rounded-[22px] bg-gradient-to-br from-[#30b0c7] to-[#0a84ff] p-5 text-white">
+        <a href={p('report')} className="rise press lift group flex flex-col justify-between gap-3 rounded-[22px] bg-gradient-to-br from-[#30b0c7] to-[#0a84ff] p-5 text-white" style={{ '--i': 1 } as CSSProperties}>
           <span className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white/20">
               <Icon name="camera" size={24} />
@@ -206,23 +212,33 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
         <p className="text-sm text-faint">{m.common.source('RID SWOC · Thaiwater (HII)')}</p>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2">
-        <Tile href={p('area')} icon="pin" hue="green" title={m.province.sections.area} sub={m.province.sections.areaSub} />
-        <Tile href={p('cctv')} icon="camera" hue="indigo" title={m.province.sections.cctv} sub={m.province.sections.cctvSub} />
-        <Tile href={p('lost-found')} icon="box" hue="pink" title={m.province.sections.lostFound} sub={m.province.sections.lostFoundSub} />
-        <Tile href={p('missing')} icon="person" hue="purple" title={m.province.sections.missing} sub={m.province.sections.missingSub} />
+      <section className="flex flex-col gap-3">
+        <SectionTitle icon="list" hue="gray">
+          {m.titles.more}
+        </SectionTitle>
+        <ul className="overflow-hidden rounded-[20px] bg-card">
+          <ListRow href={p('area')} icon="pin" hue="green" title={m.province.sections.area} sub={m.province.sections.areaSub} />
+          <ListRow href={p('cctv')} icon="camera" hue="indigo" title={m.province.sections.cctv} sub={m.province.sections.cctvSub} />
+          <ListRow href={p('lost-found')} icon="box" hue="pink" title={m.province.sections.lostFound} sub={m.province.sections.lostFoundSub} />
+          <ListRow href={p('missing')} icon="person" hue="purple" title={m.province.sections.missing} sub={m.province.sections.missingSub} />
+          <ListRow href={href({ name: 'guide', topic: null })} icon="book" hue="orange" title={m.home.actions.guide} sub={m.home.actions.guideSub} />
+        </ul>
+        <Disclosure icon="bell" hue="red" title={m.subscribe.title} sub={m.subscribe.intro}>
+          <AlertSubscribe province={province.code} bare />
+        </Disclosure>
+        <Disclosure icon="external" hue="gray" title={m.province.moreData} sub={m.province.links.external}>
+          <ExternalLinks bare />
+        </Disclosure>
       </section>
 
-      <AlertSubscribe province={province.code} />
-      <ExternalLinks />
       <EmergencyNumbers social rid />
     </div>
   )
 }
 
-function HazardCard({ href, icon, color, level, title, value, sub }: { href: string; icon: IconName; color: string; level: number; title: string; value: string; sub: string }) {
+function HazardCard({ href, icon, color, level, title, value, sub, i = 0 }: { href: string; icon: IconName; color: string; level: number; title: string; value: string; sub: string; i?: number }) {
   return (
-    <a href={href} className="relative flex min-h-36 flex-col gap-1.5 overflow-hidden rounded-[20px] bg-card p-4 transition hover:shadow-[0_6px_24px_rgb(0_0_0/0.08)]">
+    <a href={href} className="rise press lift relative flex min-h-36 flex-col gap-1.5 overflow-hidden rounded-[20px] bg-card p-4" style={{ '--i': i } as CSSProperties}>
       <span className="absolute inset-x-0 top-0 h-1" style={{ background: color }} />
       <span className="flex items-center gap-2 text-[15px] font-semibold text-muted">
         <span className="flex h-7 w-7 items-center justify-center rounded-[8px] text-white" style={{ background: color }}>
@@ -320,7 +336,7 @@ function NearMe({ stations, reports, shelters, provinceCode }: { stations: Stati
   )
 }
 
-export function ExternalLinks() {
+export function ExternalLinks({ bare = false }: { bare?: boolean }) {
   const { m } = useI18n()
   const L = m.province.links
   const links: [string, string, string][] = [
@@ -332,17 +348,18 @@ export function ExternalLinks() {
     ['https://www.tmd.go.th/', L.tmd, L.tmdSub],
     ['https://world.tehx.dyndns.info/flood#tab=map', L.tehx, L.tehxSub],
     ['https://cctv.maholan.net/', L.cctv, L.cctvSub],
-    ['https://www.floodthai.org/provinces', L.floodthai, L.floodthaiSub],
   ]
   return (
     <section className="flex flex-col gap-3">
-      <SectionTitle icon="external" hue="gray">
-        {m.province.moreData}
-      </SectionTitle>
+      {!bare && (
+        <SectionTitle icon="external" hue="gray">
+          {m.province.moreData}
+        </SectionTitle>
+      )}
       <ul className="grid gap-2 sm:grid-cols-2">
         {links.map(([url, title, sub]) => (
           <li key={url}>
-            <a href={url} target="_blank" rel="noreferrer" className="flex min-h-14 items-center gap-3 rounded-[16px] bg-card p-3.5 hover:shadow-[0_4px_20px_rgb(0_0_0/0.08)]">
+            <a href={url} target="_blank" rel="noreferrer" className={`press flex min-h-14 items-center gap-3 rounded-[16px] p-3.5 ${bare ? 'bg-paper/70 hover:bg-paper' : 'bg-card'}`}>
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold">{title}</span>
                 <span className="block text-sm text-muted">{sub}</span>
@@ -352,7 +369,7 @@ export function ExternalLinks() {
           </li>
         ))}
       </ul>
-      <p className="text-sm text-faint">{m.province.links.external}</p>
+      {!bare && <p className="text-sm text-faint">{m.province.links.external}</p>}
     </section>
   )
 }

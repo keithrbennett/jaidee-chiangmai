@@ -5,6 +5,7 @@ import { randomInt, randomUUID } from 'node:crypto'
 import { existsSync, writeFileSync } from 'node:fs'
 import { UPLOAD_DIR, all, get, run } from '../db.js'
 import { isProvince } from '../feeds.js'
+import { checksFor, publicCheck, scheduleCheck } from '../ai/checks.js'
 import { tokenHash, newToken } from '../lib/auth.js'
 import { nearestTambon, provinceAt } from '../lib/geo.js'
 import { BadInput, int, ipHash, lngLat, oneOf, rateLimit, route, sendJson, str } from '../lib/util.js'
@@ -56,7 +57,7 @@ const list = (v, field, options) => {
 
 // ---- Water level reports ---------------------------------------------------------------------------
 
-const publicReport = (r) => ({
+const publicReport = (r, check = null) => ({
   id: r.id,
   createdAt: r.created_at,
   province: r.province,
@@ -73,6 +74,7 @@ const publicReport = (r) => ({
   recededCount: r.receded_count,
   lastStillAt: r.last_still_at,
   recededAt: r.receded_at,
+  check: publicCheck(check),
 })
 
 community.get(
@@ -82,7 +84,8 @@ community.get(
     const rows = req.query.province
       ? all('SELECT * FROM reports WHERE hidden = 0 AND province = ? AND MAX(created_at, COALESCE(last_still_at, 0)) > ? ORDER BY created_at DESC', provinceParam(req.query.province), since)
       : all('SELECT * FROM reports WHERE hidden = 0 AND MAX(created_at, COALESCE(last_still_at, 0)) > ? ORDER BY created_at DESC LIMIT 5000', since)
-    sendJson(req, res, rows.map(publicReport), { maxAge: 15 })
+    const checks = checksFor('report', rows.map((r) => r.id))
+    sendJson(req, res, rows.map((r) => publicReport(r, checks.get(r.id))), { maxAge: 15 })
   }),
 )
 
@@ -106,7 +109,19 @@ community.post(
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       row.id, Date.now(), where.province, where.district, where.tambon, lat, lng, row.level, row.trend, row.passable, row.note, row.photo, ipHash(req),
     )
+    // น้องใจดี compares it with gauges, rain, satellite and other reports nearby, in the background.
+    scheduleCheck('report', row.id)
     res.status(201).json(publicReport(get('SELECT * FROM reports WHERE id = ?', row.id)))
+  }),
+)
+
+/** One report, with its check: the page polls this after sending to show what น้องใจดี found. */
+community.get(
+  '/reports/:id',
+  route(async (req, res) => {
+    const r = get('SELECT * FROM reports WHERE id = ? AND hidden = 0', String(req.params.id))
+    if (!r) return res.status(404).json({ error: 'not_found' })
+    sendJson(req, res, publicReport(r, checksFor('report', [r.id]).get(r.id)), { maxAge: 0 })
   }),
 )
 
@@ -126,13 +141,16 @@ community.post(
     run('INSERT INTO report_votes (report_id, ip_hash, vote, created_at) VALUES (?, ?, ?, ?)', report.id, voter, vote, now)
     if (vote === 'still') run('UPDATE reports SET still_count = still_count + 1, last_still_at = ?, receded_at = NULL WHERE id = ?', now, report.id)
     else run('UPDATE reports SET receded_count = receded_count + 1, receded_at = ? WHERE id = ?', now, report.id)
-    res.json(publicReport(get('SELECT * FROM reports WHERE id = ?', report.id)))
+    const updated = get('SELECT * FROM reports WHERE id = ?', report.id)
+    // A second "still flooded" is new evidence: check again.
+    if (vote === 'still' && updated.still_count === 2) scheduleCheck('report', report.id)
+    res.json(publicReport(updated, checksFor('report', [report.id]).get(report.id)))
   }),
 )
 
 // ---- Lost and found ----------------------------------------------------------------------------------
 
-const publicLost = (r) => ({
+const publicLost = (r, check = null) => ({
   id: r.id,
   createdAt: r.created_at,
   province: r.province,
@@ -144,13 +162,15 @@ const publicLost = (r) => ({
   contact: r.contact,
   photo: r.photo ? `/api/photos/${r.photo}` : null,
   status: r.status,
+  caution: check?.verdict === 'caution' ? publicCheck(check).reason : null,
 })
 
 community.get(
   '/lost-found',
   route(async (req, res) => {
     const rows = all('SELECT * FROM lost_found WHERE hidden = 0 AND province = ? ORDER BY created_at DESC LIMIT 500', provinceParam(req.query.province))
-    sendJson(req, res, rows.map(publicLost), { maxAge: 15 })
+    const checks = checksFor('lost', rows.map((r) => r.id))
+    sendJson(req, res, rows.map((r) => publicLost(r, checks.get(r.id))), { maxAge: 15 })
   }),
 )
 
@@ -177,6 +197,7 @@ community.post(
       hash,
       ipHash(req),
     )
+    scheduleCheck('lost', id)
     // The token is shown once to the poster; with it they can mark the post resolved.
     res.status(201).json({ ...publicLost(get('SELECT * FROM lost_found WHERE id = ?', id)), token })
   }),
@@ -205,11 +226,12 @@ community.post(
     requireOpenCenter(province)
     const point = b.lat !== undefined && b.lat !== null ? lngLat(b.lng, b.lat) : [null, null]
     const now = Date.now()
+    const id = randomUUID()
     run(
       `INSERT INTO missing_persons (id, created_at, updated_at, province, name, age, description, last_seen_place, last_seen_at,
          lat, lng, reporter_name, reporter_phone, relation, ip_hash)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      randomUUID(),
+      id,
       now,
       now,
       province,
@@ -225,7 +247,9 @@ community.post(
       str(b.relation, 'relation', { max: 60 }),
       ipHash(req),
     )
-    // Nothing comes back: the report is for the command centre only.
+    // Translated for staff if it isn't in Thai.
+    scheduleCheck('missing', id)
+    // Nothing comes back: the report is for the coordination centre only.
     res.status(201).json({ ok: true })
   }),
 )
@@ -246,11 +270,12 @@ community.post(
     let code = helpCode()
     while (get('SELECT 1 FROM help_requests WHERE code = ?', code)) code = helpCode()
     const now = Date.now()
+    const id = randomUUID()
     run(
       `INSERT INTO help_requests (id, code, created_at, updated_at, province, district, tambon, lat, lng, name, phone, people,
          vulnerable, needs, water_level, note, ip_hash)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      randomUUID(),
+      id,
       code,
       now,
       now,
@@ -268,6 +293,8 @@ community.post(
       str(b.note, 'note', { max: 1000 }),
       ipHash(req),
     )
+    // Urgency, a one-line summary and a Thai translation for staff.
+    scheduleCheck('help', id)
     res.status(201).json({ code, province: where.province })
   }),
 )
@@ -343,9 +370,10 @@ community.post(
     const b = req.body ?? {}
     const point = b.lat !== undefined && b.lat !== null ? lngLat(b.lng, b.lat) : null
     const province = point ? place(point[0], point[1]).province : provinceParam(b.province)
+    const id = randomUUID()
     run(
       'INSERT INTO needs (id, created_at, province, text, contact, lat, lng, ip_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      randomUUID(),
+      id,
       Date.now(),
       province,
       str(b.text, 'text', { max: 3000, required: true }),
@@ -354,6 +382,8 @@ community.post(
       point ? point[0] : null,
       ipHash(req),
     )
+    // A draft card and a scam check, ready when staff open it.
+    scheduleCheck('need', id)
     res.status(201).json({ ok: true })
   }),
 )

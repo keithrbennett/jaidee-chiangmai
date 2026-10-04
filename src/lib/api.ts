@@ -173,6 +173,18 @@ export interface Report {
   recededCount: number
   lastStillAt: number | null
   recededAt: number | null
+  /** What น้องใจดี found when it compared the report with gauges, rain, satellite and other reports. */
+  check: ReportCheck | null
+}
+
+/** Three short sentences, one per interface language. */
+export type Tri = { th: string; en: string; zh: string }
+
+export interface ReportCheck {
+  verdict: 'consistent' | 'unclear' | 'inconsistent'
+  reason: Tri | null
+  /** Checked by the model (photo and all), or by rules only. */
+  ai: boolean
 }
 
 export interface LostFound {
@@ -187,6 +199,8 @@ export interface LostFound {
   contact: string
   photo: string | null
   status: 'open' | 'resolved'
+  /** A warning from น้องใจดี's scam check (asks for transfers, short links), if any. */
+  caution: Tri | null
 }
 
 /** A volunteer need card, as published by command centre staff. */

@@ -1,4 +1,4 @@
-import { lazy, useEffect, useState } from 'react'
+import { lazy, useEffect, useRef, useState } from 'react'
 import type { Province } from '../data/provinces'
 import { LANGUAGES, useI18n } from '../i18n'
 import { ApiError, type Station } from './api'
@@ -8,6 +8,28 @@ import type { IconName } from './icons'
 
 /** MapLibre is big: pages load the map component on demand. */
 export const MapView = lazy(() => import('../components/map/MapView'))
+
+/** Count from the last value up (or down) to `target` with an ease-out, about as long as an iOS spring. */
+export function useCountUp(target: number, ms = 800) {
+  const [value, setValue] = useState(0)
+  const from = useRef(0)
+  useEffect(() => {
+    const start = from.current
+    from.current = target
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || start === target) {
+      const id = requestAnimationFrame(() => setValue(target))
+      return () => cancelAnimationFrame(id)
+    }
+    const t0 = performance.now()
+    let id = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - t0) / ms)
+      setValue(start + (target - start) * (1 - (1 - t) ** 3))
+      if (t < 1) id = requestAnimationFrame(step)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [target, ms])
+  return value
+}
 
 /** The current time, refreshed every `everyMs`: for "new" badges and 24-hour windows without impure renders. */
 export function useNow(everyMs = 60_000) {

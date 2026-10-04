@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { PROVINCES, type Province } from '../data/provinces'
+import type { MapMode } from './map/modes'
+
+const MAP_MODES = ['water', 'rain', 'air', 'fire', 'quake']
 
 /**
  * Hash router. Hash URLs work on the Vite dev server, `vite preview` and the Express server without any
  * fallback config, and every screen gets a link you can share.
  *
  *   #/                              Thailand overview
- *   #/map                           national 3D map
+ *   #/map  #/map/<mode>             national 3D map, optionally opened on water | rain | air | fire | quake
  *   #/alerts                        alerts by our warning rules, and alert notifications
  *   #/provinces                     choose a province
  *   #/p/<slug>                      a province: water now, forecast, what to do
  *   #/p/<slug>/<section>            map | weather | area | report | updates | lost-found | missing | help | open | cctv
  *   #/help/<code>                   progress on a help request
  *   #/flood                         flood simulator 3D (Chiang Mai)
+ *   #/guide  #/guide/<topic>        safety guides (src/data/guides.json)
  *   #/volunteer  #/need/<id>  #/tasks  #/post     volunteering (Jaidee)
  *   #/command                       command centre (staff)
  *   #/track/<token>                 a rescue team's phone sharing its location
@@ -23,12 +28,13 @@ export type Section = (typeof SECTIONS)[number]
 
 export type Route =
   | { name: 'home' }
-  | { name: 'map' }
+  | { name: 'map'; mode?: MapMode }
   | { name: 'alerts' }
   | { name: 'provinces' }
   | { name: 'province'; province: Province; section: Section | null }
   | { name: 'helpStatus'; code: string }
   | { name: 'flood' }
+  | { name: 'guide'; topic: string | null }
   | { name: 'volunteer' }
   | { name: 'need'; id: string }
   | { name: 'tasks' }
@@ -49,7 +55,7 @@ export function parseHash(hash: string): Route {
   const [a, b, c] = parts
   switch (a) {
     case 'map':
-      return { name: 'map' }
+      return MAP_MODES.includes(b) ? { name: 'map', mode: b as MapMode } : { name: 'map' }
     case 'alerts':
       return { name: 'alerts' }
     case 'provinces':
@@ -63,6 +69,8 @@ export function parseHash(hash: string): Route {
       return b ? { name: 'helpStatus', code: b.toUpperCase() } : { name: 'home' }
     case 'flood':
       return { name: 'flood' }
+    case 'guide':
+      return { name: 'guide', topic: b ?? null }
     case 'volunteer':
     case 'find':
       return { name: 'volunteer' }
@@ -89,6 +97,10 @@ export function href(route: Route): string {
   switch (route.name) {
     case 'home':
       return '#/'
+    case 'map':
+      return route.mode ? `#/map/${route.mode}` : '#/map'
+    case 'guide':
+      return route.topic ? `#/guide/${route.topic}` : '#/guide'
     case 'province':
       return `#/p/${route.province.slug}${route.section ? `/${route.section}` : ''}`
     case 'helpStatus':
@@ -140,8 +152,15 @@ export function useRoute(): Route {
   const [route, setRoute] = useState(() => parseHash(window.location.hash))
   useEffect(() => {
     const onChange = () => {
-      setRoute(parseHash(window.location.hash))
-      window.scrollTo({ top: 0 })
+      const swap = () => {
+        flushSync(() => setRoute(parseHash(window.location.hash)))
+        window.scrollTo({ top: 0 })
+      }
+      // Page changes cross-fade with a small lift (CSS: ::view-transition-*), where the browser can and the
+      // person hasn't asked for less motion.
+      const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (document.startViewTransition && !still && !document.hidden) document.startViewTransition(swap)
+      else swap()
     }
     window.addEventListener('hashchange', onChange)
     return () => window.removeEventListener('hashchange', onChange)

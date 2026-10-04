@@ -47,9 +47,9 @@ export function ProvinceMapView({
   const [mode, setMode] = useState<MapMode>('water')
   const satCells = useApi<[number, number, number][]>(mode === 'water' ? `/satflood/${province.code}` : null, 0)
   const mapRef = useRef<MlMap | null>(null)
-  const latest = useRef({ data, reports, m, locale })
+  const latest = useRef({ data, reports, m, locale, lang })
   useEffect(() => {
-    latest.current = { data, reports, m, locale }
+    latest.current = { data, reports, m, locale, lang }
   })
 
   const draw = useCallback(
@@ -118,6 +118,7 @@ export function ProvinceMapView({
             badge: { text: mm.levels.short[r.level], color: LEVEL_COLOR[r.level] },
             title: mm.levels.names[r.level],
             lines: [
+              r.check && `${mm.checks[r.check.verdict]}${r.check.reason ? ` · ${r.check.reason[latest.current.lang as 'th'] || r.check.reason.th}` : ''}`,
               r.note,
               r.trend && mm.report.trend[r.trend],
               r.passable && mm.report.passable[r.passable],

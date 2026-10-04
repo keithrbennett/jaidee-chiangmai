@@ -20,7 +20,7 @@ export function AlertCard({ a, showProvinces = true }: { a: Alert; showProvinces
   const h = HAZARD[a.hazard]
   const provs = a.provinces.map((c) => provinceByCode.get(c)).filter(Boolean)
   return (
-    <li className="flex overflow-hidden rounded-[18px] bg-card">
+    <li className="rise flex overflow-hidden rounded-[18px] bg-card">
       <span className="w-1.5 shrink-0" style={{ background: ALERT_COLOR[a.level] }} />
       <div className="flex min-w-0 flex-1 gap-3 p-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] text-white" style={{ background: h.color }}>
@@ -66,7 +66,7 @@ export function AlertList({ alerts, empty, showProvinces = true }: { alerts: Ale
 }
 
 /** Pick provinces, hazards and a level; turn alerts on for this browser. */
-export function AlertSubscribe({ province }: { province?: string }) {
+export function AlertSubscribe({ province, bare = false }: { province?: string; bare?: boolean }) {
   const { m, lang } = useI18n()
   const S = m.subscribe
   const [prefs, setPrefs] = useLocalStorage<AlertPrefs>('jaidee.alertPrefs', {
@@ -85,16 +85,18 @@ export function AlertSubscribe({ province }: { province?: string }) {
 
   if (!pushSupported()) return <p className="text-muted">{S.unsupported}</p>
   return (
-    <section className="flex flex-col gap-4 rounded-[22px] bg-card p-5">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#ff3b30] text-white">
-          <Icon name="bell" size={22} />
-        </span>
-        <div>
-          <h2 className="text-[20px] font-bold">{S.title}</h2>
-          <p className="text-[15px] text-muted">{S.intro}</p>
+    <section className={bare ? 'flex flex-col gap-4' : 'flex flex-col gap-4 rounded-[22px] bg-card p-5'}>
+      {!bare && (
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#ff3b30] text-white">
+            <Icon name="bell" size={22} />
+          </span>
+          <div>
+            <h2 className="text-[20px] font-bold">{S.title}</h2>
+            <p className="text-[15px] text-muted">{S.intro}</p>
+          </div>
         </div>
-      </div>
+      )}
       {needsHomeScreen() && <p className="rounded-[12px] bg-[#ffcc00]/20 p-3 text-[15px]">{S.ios}</p>}
       <div className="flex flex-col gap-2">
         <span className="font-semibold">{S.provinces}</span>

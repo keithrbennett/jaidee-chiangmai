@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useI18n } from '../../i18n'
 import { api } from '../../lib/api'
+import { clearDraft, readDraft } from '../../lib/assistant'
 import { href } from '../../lib/router'
 import { LEVELS, LEVEL_COLOR } from '../../lib/water'
+import { Icon } from '../Icon'
 import { Button } from '../ui'
 import { Choices, EmergencyNumbers, Field, Loading, LocationPicker, inputCls } from '../kit'
 import { errorText, provinceName } from '../../lib/ui'
@@ -17,14 +19,19 @@ const NEEDS = ['evacuate', 'food', 'water', 'medicine', 'medical']
  */
 export function Help({ province, data, dataError }: ProvinceProps) {
   const { m, lang } = useI18n()
-  const [where, setWhere] = useState<[number, number] | null>(null)
-  const [people, setPeople] = useState('1')
-  const [vulnerable, setVulnerable] = useState<string[]>([])
-  const [needs, setNeeds] = useState<string[]>([])
-  const [level, setLevel] = useState<number | null>(null)
-  const [phone, setPhone] = useState('')
-  const [name, setName] = useState('')
-  const [note, setNote] = useState('')
+  // A request น้องใจดี drafted in the chat (src/lib/assistant.ts), if one is waiting for this province.
+  const [draft] = useState(() => readDraft(province.code))
+  useEffect(() => clearDraft(), [])
+  const [where, setWhere] = useState<[number, number] | null>(draft?.location ?? null)
+  const [people, setPeople] = useState(String(draft?.people ?? 1))
+  const [vulnerable, setVulnerable] = useState<string[]>(draft?.vulnerable ?? [])
+  const [needs, setNeeds] = useState<string[]>(draft?.needs ?? [])
+  const [level, setLevel] = useState<number | null>(draft?.waterLevel ?? null)
+  const [phone, setPhone] = useState(draft?.phone ?? '')
+  const [name, setName] = useState(draft?.name ?? '')
+  const [note, setNote] = useState(
+    draft ? [draft.place, draft.noteTh, draft.noteOriginal && `(${draft.noteOriginal})`].filter(Boolean).join('\n').slice(0, 1000) : '',
+  )
   const [sending, setSending] = useState(false)
   const [code, setCode] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +61,12 @@ export function Help({ province, data, dataError }: ProvinceProps) {
       ) : (
         <>
           <p className="rounded-[16px] bg-urgent-soft p-4 font-semibold text-urgent">{m.help.intro}</p>
+          {draft && (
+            <p className="rise flex items-start gap-3 rounded-[16px] bg-go-soft p-4 text-[15px] font-medium text-go">
+              <Icon name="check" size={20} className="mt-0.5" />
+              {m.help.drafted}
+            </p>
+          )}
           <section className="flex flex-col gap-3">
             <h2 className="text-xl font-bold">{m.help.where}</h2>
             <LocationPicker value={where} onChange={setWhere} center={province.center} />
@@ -84,7 +97,7 @@ export function Help({ province, data, dataError }: ProvinceProps) {
           <Field label={m.help.name}>
             <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
           </Field>
-          <Field label={m.help.note}>
+          <Field label={m.help.note} hint={m.help.anyLanguage}>
             <textarea className={`${inputCls} min-h-24 py-2`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
           </Field>
           {error && <p className="font-semibold text-urgent">{error}</p>}

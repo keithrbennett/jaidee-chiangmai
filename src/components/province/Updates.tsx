@@ -6,7 +6,7 @@ import { provinceByCode, provinceHref } from '../../lib/router'
 import { clock } from '../../lib/time'
 import { LEVEL_COLOR, isReceded, reportOpacity } from '../../lib/water'
 import { Icon } from '../Icon'
-import { Ago, inputCls } from '../kit'
+import { Ago, CheckBadge, inputCls } from '../kit'
 import { provinceName, useLocale, useNow } from '../../lib/ui'
 import { SectionPage, type ProvinceProps } from './ProvincePage'
 
@@ -85,7 +85,7 @@ export function ReportItem({ r, onVoted }: { r: Report; onVoted: () => void }) {
   }
 
   return (
-    <li className="flex gap-3 rounded-[16px] bg-card p-4" style={{ opacity: Math.max(0.55, reportOpacity(r)) }}>
+    <li className="rise flex gap-3 rounded-[16px] bg-card p-4" style={{ opacity: Math.max(0.55, reportOpacity(r) * (r.check?.verdict === 'inconsistent' ? 0.75 : 1)) }}>
       <span
         className="mt-1 h-4 w-4 shrink-0 rounded-full"
         style={receded ? { border: `3px solid ${LEVEL_COLOR[r.level]}`, background: 'var(--tile)' } : { background: LEVEL_COLOR[r.level] }}
@@ -98,6 +98,9 @@ export function ReportItem({ r, onVoted }: { r: Report; onVoted: () => void }) {
         <p className="text-[15px] text-muted">
           {where || (prov ? provinceName(prov, lang) : '')} · {clock(r.createdAt, locale)} · <Ago when={r.createdAt} />
         </p>
+        <div className="mt-1">
+          <CheckBadge check={r.check} reason />
+        </div>
         <p className="text-[15px]">
           {[r.trend && m.report.trend[r.trend], r.passable && m.report.passable[r.passable]].filter(Boolean).join(' · ')}
         </p>

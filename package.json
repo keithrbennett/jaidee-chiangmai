@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n web,api -c cyan,magenta \"vite\" \"node --watch server/index.js\"",
+    "dev": "concurrently -k -n web,api -c cyan,magenta \"vite\" \"node --watch-path=server --watch-preserve-output server/index.js\"",
     "dev:web": "vite",
     "build": "tsc -b && vite build",
     "start": "node server/index.js",

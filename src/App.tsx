@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { AlertsPage } from './components/alerts/Alerts'
+import { AssistantLauncher } from './components/assistant/Launcher'
 import { BottomNav, EmergencyStrip, Footer, Header } from './components/Header'
 import { Command } from './components/pages/Command'
 import { Home } from './components/pages/Home'
@@ -9,10 +10,14 @@ import { MyTasks, NeedPage, PostNeed, VolunteerList } from './components/pages/V
 import { ProvincePage } from './components/province/ProvincePage'
 import { useI18n } from './i18n'
 import { useApi, type Alert } from './lib/api'
+import { setAssistantContext } from './lib/assistant'
+import { useQuickReport } from './lib/report'
 import { tabOf, useRoute } from './lib/router'
 
 // The flood model and its 3D city are big; load them only when someone opens the simulator.
 const FloodSim = lazy(() => import('./components/FloodSim'))
+const Guide = lazy(() => import('./components/pages/Guide'))
+const QuickReportSheet = lazy(() => import('./components/report/QuickReport'))
 
 export default function App() {
   const { m, lang } = useI18n()
@@ -21,6 +26,7 @@ export default function App() {
   // Alerts feed the home page, the alerts page and the badge on the nav.
   const alerts = useApi<Alert[]>('/alerts', 5 * 60_000)
   const danger = (alerts.data ?? []).filter((a) => a.level === 3).length
+  const quickReport = useQuickReport()
 
   useEffect(() => {
     const page =
@@ -30,11 +36,18 @@ export default function App() {
           : route.province.en
         : route.name === 'home'
           ? null
-          : tab === 'more'
-            ? m.nav[route.name as 'sources' | 'about' | 'command'] ?? m.titles.more
-            : m.titles[tab]
+          : route.name === 'guide'
+            ? m.titles.guide
+            : tab === 'more'
+              ? m.nav[route.name as 'sources' | 'about' | 'command'] ?? m.titles.more
+              : m.titles[tab]
     document.title = page ? `${page} · ${m.appName}` : `${m.appName} · ${m.tagline}`
   }, [route, tab, m, lang])
+
+  // น้องใจดี knows which province page the person is on, so "here" means something.
+  useEffect(() => {
+    setAssistantContext(route.name === 'province' ? route.province.code : null, route.name === 'province' ? route.section : null)
+  }, [route])
 
   // Full-height screens (map, simulator) don't scroll or show the footer.
   const fullHeight = route.name === 'map' || route.name === 'flood'
@@ -46,7 +59,7 @@ export default function App() {
       <main className={`flex flex-1 flex-col ${fullHeight ? 'min-h-0' : ''}`}>
         {route.name === 'home' && <Home alerts={alerts.data} />}
         {route.name === 'alerts' && <AlertsPage alerts={alerts.data} />}
-        {route.name === 'map' && <MapPage />}
+        {route.name === 'map' && <MapPage mode={route.mode} />}
         {route.name === 'provinces' && <Provinces />}
         {route.name === 'province' && <ProvincePage key={route.province.code} province={route.province} section={route.section} />}
         {route.name === 'helpStatus' && <HelpStatus code={route.code} />}
@@ -55,6 +68,11 @@ export default function App() {
             <div className="flex h-[calc(100dvh-7.5rem)] min-h-0 md:h-[calc(100dvh-6.5rem)]">
               <FloodSim />
             </div>
+          </Suspense>
+        )}
+        {route.name === 'guide' && (
+          <Suspense fallback={<div className="mx-auto w-full max-w-6xl p-6"><div className="skeleton h-40" /></div>}>
+            <Guide topic={route.topic} />
           </Suspense>
         )}
         {route.name === 'volunteer' && <VolunteerList />}
@@ -67,6 +85,13 @@ export default function App() {
         {route.name === 'about' && <About />}
       </main>
       {!fullHeight && <Footer />}
+      {/* Staff screens and the simulator have their own tools; everywhere else น้องใจดี is one tap away. */}
+      <AssistantLauncher hidden={route.name === 'flood' || route.name === 'command' || route.name === 'track'} />
+      {quickReport.open && (
+        <Suspense fallback={null}>
+          <QuickReportSheet />
+        </Suspense>
+      )}
       <div className="sticky bottom-0 z-[1000]">
         <BottomNav tab={tab} danger={danger} />
       </div>

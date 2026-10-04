@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS reports (
   last_still_at INTEGER,
   receded_at INTEGER,
   ip_hash TEXT,
-  hidden INTEGER NOT NULL DEFAULT 0
+  hidden INTEGER NOT NULL DEFAULT 0 -- 1 hidden by staff, 2 held by น้องใจดี for staff to look at
 );
 CREATE INDEX IF NOT EXISTS reports_province_time ON reports (province, created_at);
 
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS lost_found (
   status TEXT NOT NULL DEFAULT 'open',
   token_hash TEXT NOT NULL,
   ip_hash TEXT,
-  hidden INTEGER NOT NULL DEFAULT 0
+  hidden INTEGER NOT NULL DEFAULT 0 -- 1 hidden by staff, 2 held by น้องใจดี for staff to look at
 );
 CREATE INDEX IF NOT EXISTS lost_found_province ON lost_found (province, created_at);
 
@@ -196,6 +196,22 @@ CREATE TABLE IF NOT EXISTS sent_alerts (
   level INTEGER NOT NULL,
   sent_at INTEGER NOT NULL,
   PRIMARY KEY (id, level)
+);
+
+-- What น้องใจดี (the assistant) found when it checked something the public sent: a water report against
+-- gauges, rain, satellite and other reports; a lost-and-found post for scams; a help request's urgency and
+-- translation. One row per item, replaced when checked again. summary is public-safe; details is staff-only.
+CREATE TABLE IF NOT EXISTS ai_checks (
+  kind TEXT NOT NULL,              -- report | lost | help | missing | need
+  ref_id TEXT NOT NULL,
+  verdict TEXT,                    -- report: consistent | unclear | inconsistent; lost, need: ok | caution | hold; help: 1-3
+  score REAL,
+  summary TEXT,                    -- JSON { th, en, zh }: one short sentence
+  details TEXT,                    -- JSON: evidence and the model's notes, for staff
+  translation TEXT,                -- JSON { language, th, en } when the text was not in Thai
+  by_ai INTEGER NOT NULL DEFAULT 0, -- 0: rules only (no API key or the call failed)
+  checked_at INTEGER NOT NULL,
+  PRIMARY KEY (kind, ref_id)
 );
 
 -- Volunteer needs (Jaidee). Posted by anyone, shown once a staff member has checked them.

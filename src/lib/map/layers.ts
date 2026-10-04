@@ -301,7 +301,8 @@ export function showReports(map: MlMap, reports: Report[]) {
   setSource(map, 'jd-rep', {
     type: 'FeatureCollection',
     features: reports.map((r) =>
-      point(r.lng, r.lat, { id: r.id, color: LEVEL_COLOR[r.level], opacity: reportOpacity(r), receded: isReceded(r), level: r.level }),
+      // Reports that don't match the data around them are drawn fainter, not hidden: people decide.
+      point(r.lng, r.lat, { id: r.id, color: LEVEL_COLOR[r.level], opacity: reportOpacity(r) * (r.check?.verdict === 'inconsistent' ? 0.45 : 1), receded: isReceded(r), level: r.level }),
     ),
   })
   addLayer(

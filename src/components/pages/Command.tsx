@@ -2,13 +2,14 @@ import type { Map as MlMap } from 'maplibre-gl'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { PROVINCES } from '../../data/provinces'
 import { useI18n } from '../../i18n'
-import { ApiError, api } from '../../lib/api'
+import { ApiError, api, type ReportCheck, type Tri } from '../../lib/api'
 import { addLayer, setSource } from '../../lib/map/layers'
 import { clock } from '../../lib/time'
 import { LEVEL_COLOR } from '../../lib/water'
 import { Icon } from '../Icon'
 import { Button } from '../ui'
-import { Ago, Choices, Field, LocationPicker, MapBox, inputCls } from '../kit'
+import { Ago, CheckBadge, Choices, Field, LocationPicker, MapBox, inputCls } from '../kit'
+import { Orb } from '../assistant/Orb'
 import { MapView, errorText, provinceName, useLocale } from '../../lib/ui'
 
 interface Staff {
@@ -46,6 +47,35 @@ interface Team {
   lng: number | null
   located_at: number | null
 }
+/** What น้องใจดี found about one item (server/ai/checks.js, staffCheck). */
+interface StaffCheck {
+  verdict: string | null
+  score: number | null
+  summary: Tri | null
+  details: {
+    evidence?: { gauges: { name: string; status: string; km: number }[]; rainMax24h: number | null; satCellsWithin1km: number | null; otherReports: { wet: number } }
+    ai?: { staff_note?: string; flags?: Record<string, boolean>; reason_th?: string }
+    draft?: Partial<NeedDraft>
+    flags?: Record<string, boolean>
+  } | null
+  translation: { language: string; languageTh?: string; th: string; en: string } | null
+  byAi: boolean
+  checkedAt: number
+}
+interface NeedDraft {
+  title: string
+  description: string
+  category: string
+  urgent: boolean
+  place: string
+  partner: string
+  when: string
+  hours: number
+  spots: number
+  skills: string
+}
+type Checks = Record<'help' | 'missing' | 'need' | 'report' | 'lost', Record<string, StaffCheck>>
+
 interface Overview {
   province: string
   commandCenter: { active: number; name: string | null; hotline: string | null }
@@ -55,6 +85,8 @@ interface Overview {
   shelters: Record<string, string | number | null>[]
   needs: { id: string; created_at: number; text: string; contact: string; lat: number | null; lng: number | null }[]
   reports: { id: string; created_at: number; level: number; note: string | null; hidden: number; photo: string | null }[]
+  lostHeld: { id: string; created_at: number; kind: string; title: string; description: string | null; contact: string; photo: string | null }[]
+  checks: Checks
 }
 type Tab = 'help' | 'teams' | 'missing' | 'shelters' | 'needs' | 'reports' | 'settings' | 'admin' | 'account'
 
@@ -233,23 +265,34 @@ function HelpTab({ data, reload }: { data: Overview; reload: () => void }) {
       </MapBox>
       <div className="flex flex-col gap-3">
         {!data.help.length && <p className="text-muted">{m.command.help.none}</p>}
-        {data.help.map((h) => (
-          <HelpCard key={h.id} h={h} teams={data.teams} reload={reload} onFocus={() => mapRef.current?.flyTo({ center: [h.lng, h.lat], zoom: 15 })} />
-        ))}
+        {[...data.help]
+          // New requests: the most urgent first (น้องใจดี's triage), then oldest first as the server sends them.
+          .sort((a, b) => (a.status === 'new' && b.status === 'new' ? (data.checks.help[b.id]?.score ?? 0) - (data.checks.help[a.id]?.score ?? 0) : 0))
+          .map((h) => (
+            <HelpCard key={h.id} h={h} check={data.checks.help[h.id]} teams={data.teams} reload={reload} onFocus={() => mapRef.current?.flyTo({ center: [h.lng, h.lat], zoom: 15 })} />
+          ))}
       </div>
     </div>
   )
 }
 
-function HelpCard({ h, teams, reload, onFocus }: { h: HelpRow; teams: Team[]; reload: () => void; onFocus: () => void }) {
+const URGENCY_COLOR = ['', '#8e8e93', '#ff9500', '#ff3b30']
+
+function HelpCard({ h, check, teams, reload, onFocus }: { h: HelpRow; check?: StaffCheck; teams: Team[]; reload: () => void; onFocus: () => void }) {
   const { m } = useI18n()
   const [note, setNote] = useState(h.staff_note ?? '')
+  const urgency = check?.score ?? 0
   return (
     <Card>
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-full px-2.5 py-0.5 text-sm font-bold text-white" style={{ background: HELP_COLORS[h.status] }}>
           {m.helpStatus.statuses[h.status]}
         </span>
+        {urgency > 0 && h.status === 'new' && (
+          <span className={`rounded-full px-2.5 py-0.5 text-sm font-bold text-white ${urgency === 3 ? 'ring-pulse' : ''}`} style={{ background: URGENCY_COLOR[urgency] }}>
+            {m.command.ai.urgency[urgency]}
+          </span>
+        )}
         <b>{h.code}</b>
         <span className="text-sm text-muted">
           <Ago when={h.created_at} />
@@ -272,7 +315,9 @@ function HelpCard({ h, teams, reload, onFocus }: { h: HelpRow; teams: Team[]; re
           {[...h.vulnerable.map((v) => m.help.vulnerable[v]), ...h.needs.map((n) => m.help.needs[n])].join(' · ')}
         </p>
       )}
+      {check?.byAi && check.summary?.th && <AiNote>{check.summary.th}</AiNote>}
       {h.note && <p className="text-muted">{h.note}</p>}
+      {check?.translation && <Translation t={check.translation} />}
       <div className="flex flex-wrap gap-2">
         <a href={`tel:${h.phone}`} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-[#34c759] px-4 font-semibold text-white">
           <Icon name="phone" size={18} /> {h.name ? `${h.name} · ` : ''}
@@ -419,6 +464,7 @@ function MissingTab({ data, reload }: { data: Overview; reload: () => void }) {
             </span>
           </div>
           {x.description && <p>{x.description}</p>}
+          {data.checks.missing[String(x.id)]?.translation && <Translation t={data.checks.missing[String(x.id)].translation!} />}
           <p className="text-muted">
             {f.lastSeenPlace}: {x.last_seen_place ?? '–'} · {f.lastSeenAt}: {x.last_seen_at ?? '–'}
           </p>
@@ -491,18 +537,32 @@ function NeedsTab({ data, reload }: { data: Overview; reload: () => void }) {
   return (
     <div className="flex flex-col gap-3">
       {data.needs.map((n) => (
-        <NeedCheck key={n.id} n={n} province={data.province} reload={reload} />
+        <NeedCheck key={`${n.id}-${data.checks.need[n.id]?.checkedAt ?? 0}`} n={n} check={data.checks.need[n.id]} province={data.province} reload={reload} />
       ))}
     </div>
   )
 }
 
-function NeedCheck({ n, province, reload }: { n: Overview['needs'][number]; province: string; reload: () => void }) {
+function NeedCheck({ n, check, province, reload }: { n: Overview['needs'][number]; check?: StaffCheck; province: string; reload: () => void }) {
   const { m } = useI18n()
   const F = m.command.needs.fields
   const prov = PROVINCES.find((p) => p.code === province)!
   const [where, setWhere] = useState<[number, number] | null>(n.lat !== null && n.lng !== null ? [n.lng, n.lat] : null)
-  const [c, setC] = useState({ title: '', description: n.text, category: 'flood', urgent: false, place: '', partner: '', contact: n.contact, when: '', hours: '2', spots: '4', skills: '' })
+  // น้องใจดี drafts the card from the post (server/ai/checks.js); staff check and edit it before publishing.
+  const d = check?.details?.draft
+  const [c, setC] = useState({
+    title: d?.title ?? '',
+    description: d?.description || n.text,
+    category: d?.category ?? 'flood',
+    urgent: d?.urgent ?? false,
+    place: d?.place ?? '',
+    partner: d?.partner ?? '',
+    contact: n.contact,
+    when: d?.when ?? '',
+    hours: String(d?.hours ?? 2),
+    spots: String(d?.spots ?? 4),
+    skills: d?.skills ?? '',
+  })
   const [error, setError] = useState<string | null>(null)
   const set = (k: keyof typeof c) => (e: { target: { value: string } }) => setC({ ...c, [k]: e.target.value })
   return (
@@ -511,6 +571,8 @@ function NeedCheck({ n, province, reload }: { n: Overview['needs'][number]; prov
         {m.command.needs.posted} · <Ago when={n.created_at} />
       </p>
       <p className="whitespace-pre-wrap rounded-[12px] bg-paper p-3">{n.text}</p>
+      {check?.verdict === 'caution' && check.summary?.th && <p className="rounded-[12px] bg-[#ffcc00]/22 px-3 py-2 font-medium text-[#7a5a00]">{m.command.ai.caution}: {check.summary.th}</p>}
+      {d && <AiNote>{m.command.ai.draftReady}</AiNote>}
       <div className="grid gap-2 sm:grid-cols-2">
         <input className={inputCls} placeholder={F.title} value={c.title} onChange={set('title')} />
         <select className={inputCls} value={c.category} onChange={set('category')} aria-label={F.category}>
@@ -562,22 +624,109 @@ function NeedCheck({ n, province, reload }: { n: Overview['needs'][number]; prov
 function ReportsTab({ data, reload }: { data: Overview; reload: () => void }) {
   const { m } = useI18n()
   const locale = useLocale()
+  const A = m.command.ai
+  const [busy, setBusy] = useState<string | null>(null)
+  const recheck = async (kind: string, id: string) => {
+    setBusy(id)
+    await api(`/staff/checks/${kind}/${id}`, { body: {} }).catch(() => {})
+    setBusy(null)
+    reload()
+  }
   return (
-    <ul className="flex flex-col gap-2">
-      {data.reports.map((r) => (
-        <li key={r.id} className={`flex items-center gap-3 rounded-[14px] bg-card p-3 ${r.hidden ? 'opacity-50' : ''}`}>
-          <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: LEVEL_COLOR[r.level] }} />
-          <span className="min-w-0 flex-1">
-            {m.levels.names[r.level]} · {clock(r.created_at, locale)}
-            {r.note && <span className="block text-sm text-muted">{r.note}</span>}
-          </span>
-          {r.photo && <img src={`/api/photos/${r.photo}`} alt="" className="h-12 w-12 rounded-lg object-cover" />}
-          <button onClick={() => patch(`/staff/reports/${r.id}`, { hidden: !r.hidden }).then(reload)} className="rounded-full bg-paper px-3 py-1.5 text-sm font-semibold">
-            {r.hidden ? m.command.reports.show : m.command.reports.hide}
-          </button>
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-4">
+      {data.lostHeld.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg font-bold">{A.heldLost}</h2>
+          {data.lostHeld.map((p) => {
+            const c = data.checks.lost[p.id]
+            return (
+              <Card key={p.id}>
+                <p className="font-semibold">{p.title}</p>
+                {p.description && <p className="text-muted">{p.description}</p>}
+                {c?.details?.ai?.staff_note && <AiNote>{c.details.ai.staff_note}</AiNote>}
+                <div className="flex gap-2">
+                  <button onClick={() => patch(`/staff/lost/${p.id}`, { hidden: false }).then(reload)} className="rounded-full bg-go px-4 py-1.5 text-sm font-semibold text-white">
+                    {A.publish}
+                  </button>
+                  <button onClick={() => patch(`/staff/lost/${p.id}`, { hidden: true }).then(reload)} className="rounded-full bg-paper px-4 py-1.5 text-sm font-semibold">
+                    {A.keepHidden}
+                  </button>
+                </div>
+              </Card>
+            )
+          })}
+        </section>
+      )}
+      <ul className="flex flex-col gap-2">
+        {data.reports.map((r) => {
+          const c = data.checks.report[r.id]
+          const check: ReportCheck | null = c?.verdict ? { verdict: c.verdict as ReportCheck['verdict'], reason: c.summary, ai: c.byAi } : null
+          const ev = c?.details?.evidence
+          const held = r.hidden === 2
+          return (
+            <li key={r.id} className={`flex flex-col gap-2 rounded-[14px] bg-card p-3 ${r.hidden === 1 ? 'opacity-50' : ''} ${held ? 'ring-2 ring-[#ff9500]' : ''}`}>
+              <div className="flex items-center gap-3">
+                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: LEVEL_COLOR[r.level] }} />
+                <span className="min-w-0 flex-1">
+                  {m.levels.names[r.level]} · {clock(r.created_at, locale)}
+                  {r.note && <span className="block text-sm text-muted">{r.note}</span>}
+                </span>
+                {r.photo && <img src={`/api/photos/${r.photo}`} alt="" className="h-14 w-14 rounded-lg object-cover" />}
+              </div>
+              {held && <p className="text-sm font-semibold text-[#a64b00]">{A.held}</p>}
+              <div className="flex flex-wrap items-center gap-2">
+                <CheckBadge check={check} reason />
+              </div>
+              {c?.details?.ai?.staff_note && <AiNote>{c.details.ai.staff_note}</AiNote>}
+              {ev && (
+                <p className="text-[13px] text-faint">
+                  {A.evidence}:{' '}
+                  {[
+                    ...ev.gauges.slice(0, 2).map((g) => `${g.name} ${m.status[g.status as 'over'] ?? g.status} (${g.km} km)`),
+                    ev.rainMax24h !== null && A.rain(ev.rainMax24h),
+                    ev.satCellsWithin1km ? A.sat(ev.satCellsWithin1km) : null,
+                    ev.otherReports.wet ? A.others(ev.otherReports.wet) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  {!c?.byAi && ` · ${A.rulesOnly}`}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => patch(`/staff/reports/${r.id}`, { hidden: r.hidden === 0 }).then(reload)} className="rounded-full bg-paper px-3 py-1.5 text-sm font-semibold">
+                  {r.hidden ? m.command.reports.show : m.command.reports.hide}
+                </button>
+                <button onClick={() => recheck('report', r.id)} disabled={busy === r.id} className="rounded-full bg-paper px-3 py-1.5 text-sm font-semibold text-link">
+                  {busy === r.id ? A.checking : A.recheck}
+                </button>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+/** A note from น้องใจดี: its face, then the text. */
+function AiNote({ children }: { children: ReactNode }) {
+  return (
+    <p className="flex items-start gap-2 rounded-[12px] bg-go-soft/70 px-3 py-2 text-[15px] leading-snug">
+      <Orb size={20} className="mt-0.5" />
+      <span>{children}</span>
+    </p>
+  )
+}
+
+/** A translation for staff (the original stays above it, as sent): Thai first, then English. */
+function Translation({ t }: { t: NonNullable<StaffCheck['translation']> }) {
+  const { m, lang } = useI18n()
+  return (
+    <div className="rounded-[12px] border border-go/25 bg-card px-3 py-2 text-[15px]">
+      <p className="text-[13px] font-semibold text-go">{m.command.ai.translated(lang === 'th' ? (t.languageTh ?? t.language) : t.language)}</p>
+      <p>{t.th}</p>
+      {t.en && <p className="text-[14px] text-muted">{t.en}</p>}
+    </div>
   )
 }
 

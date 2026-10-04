@@ -77,6 +77,10 @@ export function cached(name, load, ttlMs = 10 * 60 * 1000) {
       await entry.pending
       return entry.value
     },
+    /** The last good value without fetching (null if never loaded): for quick checks that must not wait on a feed. */
+    peek() {
+      return entry.value
+    },
     /** When the cached value was fetched (ms), or 0. */
     get fetchedAt() {
       return entry.fetchedAt

@@ -177,7 +177,13 @@ function popupFor(map: MlMap, d: PopupData, layer: string, p: Record<string, unk
     openPopup(map, [r.lng, r.lat], {
       badge: { text: mm.levels.short[r.level], color: LEVEL_COLOR[r.level] },
       title: mm.levels.names[r.level],
-      lines: [r.note, r.trend && mm.report.trend[r.trend], r.passable && mm.report.passable[r.passable], clock(r.createdAt, d.locale)],
+      lines: [
+        r.check && `${mm.checks[r.check.verdict]}${r.check.reason ? ` · ${r.check.reason[d.lang as 'th'] || r.check.reason.th}` : ''}`,
+        r.note,
+        r.trend && mm.report.trend[r.trend],
+        r.passable && mm.report.passable[r.passable],
+        clock(r.createdAt, d.locale),
+      ],
       image: r.photo ?? undefined,
       link: byCode.get(r.province) ? { href: provinceHref(byCode.get(r.province)!, 'updates'), text: mm.province.sections.updates } : undefined,
     })

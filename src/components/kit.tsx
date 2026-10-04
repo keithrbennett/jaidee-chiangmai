@@ -2,11 +2,11 @@ import type { Map as MlMap } from 'maplibre-gl'
 import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { PROVINCES, type Province } from '../data/provinces'
 import { useI18n } from '../i18n'
-import type { Station } from '../lib/api'
+import type { ReportCheck, Station, Tri } from '../lib/api'
 import type { IconName } from '../lib/icons'
 import { clock, ago } from '../lib/time'
 import { STALE_HOURS, STATUS_COLOR, ageHours, stationStatus, type StationStatus } from '../lib/water'
-import { MapView, parseLocation, provinceName, shrinkPhoto, trendIcon, useGeolocation, useLocale } from '../lib/ui'
+import { MapView, parseLocation, provinceName, shrinkPhoto, trendIcon, useCountUp, useGeolocation, useLocale } from '../lib/ui'
 import { Icon } from './Icon'
 
 export function MapBox({ className = '', children }: { className?: string; children: ReactNode }) {
@@ -65,7 +65,7 @@ export function Tile({ href, icon, hue, title, sub, onClick }: { href?: string; 
       <Icon name="forward" size={20} className="text-faint" />
     </>
   )
-  const cls = 'flex min-h-16 items-center gap-3 rounded-[18px] bg-card p-4 text-left transition hover:shadow-[0_4px_20px_rgb(0_0_0/0.08)]'
+  const cls = 'press lift flex min-h-16 items-center gap-3 rounded-[18px] bg-card p-4 text-left'
   return href ? (
     <a href={href} className={cls}>
       {inner}
@@ -143,7 +143,7 @@ export function EmergencyNumbers({ social = false, rid = false }: { social?: boo
       <ul className="grid gap-2 sm:grid-cols-2">
         {rows.map(([num, label, hue]) => (
           <li key={num}>
-            <a href={`tel:${num}`} className="flex min-h-16 items-center gap-3 rounded-[16px] bg-card p-3 hover:shadow-[0_4px_20px_rgb(0_0_0/0.08)]">
+            <a href={`tel:${num}`} className="press lift flex min-h-16 items-center gap-3 rounded-[16px] bg-card p-3">
               <span className={`inline-flex h-12 min-w-16 items-center justify-center rounded-[12px] px-2 text-[22px] font-bold text-white ${HUES[hue]}`}>{num}</span>
               <span className="text-[15px] leading-snug">{label}</span>
             </a>
@@ -194,7 +194,7 @@ export function Choices<T extends string | number>({
             key={String(v)}
             onClick={() => onChange(v)}
             aria-pressed={on}
-            className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-[15px] font-medium transition ${
+            className={`press inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-[15px] font-medium ${
               on ? 'border-transparent bg-go text-white' : 'border-line bg-card text-ink hover:border-go'
             }`}
             style={on && c ? { background: c } : undefined}
@@ -385,7 +385,106 @@ export function Ago({ when }: { when: number | string }) {
   return <>{ago(when, m)}</>
 }
 
-export function Loading({ error }: { error?: boolean }) {
+/** Grey shapes shimmering where content is coming (or the error, if it isn't). */
+export function Loading({ error, rows = 3 }: { error?: boolean; rows?: number }) {
   const { m } = useI18n()
-  return <p className={`rounded-[16px] bg-card p-5 ${error ? 'text-urgent' : 'text-muted'}`}>{error ? m.common.loadFailed : m.common.loading}</p>
+  if (error) return <p className="rounded-[16px] bg-card p-5 text-urgent">{m.common.loadFailed}</p>
+  return (
+    <div className="flex flex-col gap-2" role="status" aria-label={m.common.loading}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="skeleton h-16" style={{ opacity: 1 - i * 0.2 }} />
+      ))}
+    </div>
+  )
+}
+
+/** A number that counts up to its value when it appears or changes. */
+export function AnimatedNumber({ value, format = (n) => String(Math.round(n)) }: { value: number; format?: (n: number) => string }) {
+  return <>{format(useCountUp(value))}</>
+}
+
+/** One row of an iOS-style grouped list: coloured icon, title, a line under it, chevron. */
+export function ListRow({ href, onClick, icon, hue, title, sub, external = false }: { href?: string; onClick?: () => void; icon: IconName; hue: Hue; title: string; sub?: string; external?: boolean }) {
+  const inner = (
+    <>
+      <IconBadge icon={icon} hue={hue} size="sm" />
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold leading-snug">{title}</span>
+        {sub && <span className="block text-[14px] leading-snug text-muted">{sub}</span>}
+      </span>
+      <Icon name={external ? 'external' : 'forward'} size={external ? 17 : 19} className="text-faint" />
+    </>
+  )
+  const cls = 'press flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-paper/60'
+  return (
+    <li className="border-b border-line/60 last:border-0">
+      {href ? (
+        <a href={href} className={cls} {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}>
+          {inner}
+        </a>
+      ) : (
+        <button onClick={onClick} className={cls}>
+          {inner}
+        </button>
+      )}
+    </li>
+  )
+}
+
+/** A row that opens to show more, with the content sliding open (grid-rows 0fr → 1fr). */
+export function Disclosure({ icon, hue, title, sub, children, defaultOpen = false }: { icon: IconName; hue: Hue; title: string; sub?: string; children: ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <section className="overflow-hidden rounded-[20px] bg-card">
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className="press flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left">
+        <IconBadge icon={icon} hue={hue} size="sm" />
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold leading-snug">{title}</span>
+          {sub && <span className="block text-[14px] leading-snug text-muted">{sub}</span>}
+        </span>
+        <Icon name="down" size={20} className={`text-faint transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-t border-line/60 p-4">{children}</div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+const CHECK_STYLE: Record<ReportCheck['verdict'], { icon: IconName; cls: string }> = {
+  consistent: { icon: 'verified', cls: 'bg-[#34c759]/14 text-[#1f7a35] dark:text-[#30d158]' },
+  unclear: { icon: 'question', cls: 'bg-paper text-muted' },
+  inconsistent: { icon: 'alert', cls: 'bg-[#ff9500]/16 text-[#a64b00] dark:text-[#ff9f0a]' },
+}
+
+/** What น้องใจดี's check found about a report: a small label, and the reason under it if asked for. */
+export function CheckBadge({ check, reason = false }: { check: ReportCheck | null; reason?: boolean }) {
+  const { m, lang } = useI18n()
+  if (!check) return null
+  const st = CHECK_STYLE[check.verdict]
+  const why = check.reason?.[lang] || check.reason?.th
+  return (
+    <span className="inline-flex flex-col items-start gap-0.5">
+      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold ${st.cls}`} title={m.checks.about}>
+        <Icon name={st.icon} size={13} />
+        {m.checks[check.verdict]}
+      </span>
+      {reason && why && <span className="text-[13px] leading-snug text-faint">{why}</span>}
+    </span>
+  )
+}
+
+/** The scam warning on a lost-and-found post. */
+export function CautionNote({ text }: { text: Tri | null }) {
+  const { lang } = useI18n()
+  const t = text?.[lang] || text?.th
+  if (!t) return null
+  return (
+    <p className="flex items-start gap-2 rounded-[12px] bg-[#ffcc00]/22 px-3 py-2 text-[14px] font-medium leading-snug text-[#7a5a00] dark:text-[#ffd60a]">
+      <Icon name="alert" size={17} className="mt-0.5 shrink-0" />
+      {t}
+    </p>
+  )
 }

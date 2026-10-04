@@ -56,3 +56,24 @@ export async function provinceAt(lng: number, lat: number): Promise<Province | n
   })
   return hit ? (PROVINCES.find((p) => p.code === hit.properties?.code) ?? null) : null
 }
+
+/** "ต.สุเทพ อ.เมืองเชียงใหม่ จ.เชียงใหม่" for a point: province by outline, then the nearest sub-district. */
+export async function placeName(lng: number, lat: number, lang: string): Promise<{ province: Province; label: string } | null> {
+  const province = await provinceAt(lng, lat)
+  if (!province) return null
+  const [tambons, districts] = await Promise.all([loadTambons(province.code).catch(() => []), loadDistricts(province.code).catch(() => null)])
+  const k = Math.cos((lat * Math.PI) / 180)
+  let best: Tambon | null = null
+  let bestD = Infinity
+  for (const t of tambons) {
+    const d = ((t[4] - lng) * k) ** 2 + (t[5] - lat) ** 2
+    if (d < bestD) {
+      bestD = d
+      best = t
+    }
+  }
+  const d = best && districts?.features.find((f) => f.properties?.pcode === best![3])?.properties as { th: string; en: string } | undefined
+  const th = [best && `ต.${best[1]}`, d && `อ.${d.th}`, `จ.${province.th}`].filter(Boolean).join(' ')
+  const en = [best?.[2], d?.en, province.en].filter(Boolean).join(', ')
+  return { province, label: lang === 'th' ? th : en }
+}

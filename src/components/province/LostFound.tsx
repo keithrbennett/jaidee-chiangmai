@@ -5,7 +5,7 @@ import { provinceHref } from '../../lib/router'
 import { useLocalStorage } from '../../lib/useLocalStorage'
 import { Icon } from '../Icon'
 import { Button } from '../ui'
-import { Ago, Choices, Field, PhotoInput, inputCls } from '../kit'
+import { Ago, CautionNote, Choices, Field, PhotoInput, inputCls } from '../kit'
 import { errorText, provinceName } from '../../lib/ui'
 import { SectionPage, type ProvinceProps } from './ProvincePage'
 
@@ -87,6 +87,7 @@ export function LostFound({ province }: ProvinceProps) {
                 </span>
               </div>
               <p className="text-lg font-semibold">{p.title}</p>
+              <CautionNote text={p.caution} />
               {p.description && <p>{p.description}</p>}
               {p.place && <p className="text-muted">{p.place}</p>}
               {p.photo && <img src={p.photo} alt="" loading="lazy" className="mt-1 max-h-56 self-start rounded-[12px]" />}

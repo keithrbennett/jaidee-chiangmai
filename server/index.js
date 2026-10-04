@@ -12,13 +12,14 @@ try {
 }
 
 // Imported after .env is loaded: the database and auth modules read it at load time.
-const { claude } = await import('./routes/claude.js')
+const { assistantRoutes } = await import('./routes/assistant.js')
 const { command } = await import('./routes/command.js')
 const { community } = await import('./routes/community.js')
 const { data } = await import('./routes/data.js')
 const { hazardRoutes } = await import('./routes/hazards.js')
 const { startPush } = await import('./push.js')
 const { bootstrapAdmin } = await import('./lib/auth.js')
+const { startChecks } = await import('./ai/checks.js')
 
 const PORT = Number(process.env.PORT ?? 8787)
 
@@ -26,9 +27,9 @@ const app = express()
 app.disable('x-powered-by')
 // Behind a reverse proxy (nginx, Cloudflare …) set TRUST_PROXY so rate limits see the real client address.
 if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY)
-// Report and lost-and-found photos come as data URLs; everything else is small.
-app.use('/api', express.json({ limit: '2mb' }))
-app.use('/api', data, hazardRoutes, community, command, claude)
+// Report, lost-and-found and chat photos come as data URLs; everything else is small.
+app.use('/api', express.json({ limit: '3mb' }))
+app.use('/api', data, hazardRoutes, community, command, assistantRoutes)
 app.use('/api', (_req, res) => res.status(404).json({ error: 'not_found' }))
 
 // Serve the production build if it exists (npm run build && npm start).
@@ -40,6 +41,7 @@ if (existsSync(dist)) {
 
 bootstrapAdmin()
 startPush()
+startChecks()
 
 app.listen(PORT, (err) => {
   // Express 5 passes listen errors (e.g. EADDRINUSE) here instead of throwing.

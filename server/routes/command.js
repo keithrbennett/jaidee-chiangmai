@@ -6,6 +6,7 @@ import { all, get, run } from '../db.js'
 import { isProvince } from '../feeds.js'
 import { canAccess, changePassword, createStaff, login, logout, newToken, publicStaff, requireAdmin, requireStaff, tokenHash } from '../lib/auth.js'
 import { BadInput, int, lngLat, oneOf, rateLimit, route, sendJson, str } from '../lib/util.js'
+import { checksFor, runCheck, staffCheck } from '../ai/checks.js'
 
 export const command = express.Router()
 
@@ -47,6 +48,9 @@ function owned(req, table, id) {
   return row
 }
 
+/** What น้องใจดี found for each row, by id. */
+const checkMap = (kind, rows) => Object.fromEntries([...checksFor(kind, rows.map((r) => r.id))].map(([id, c]) => [id, staffCheck(c)]))
+
 // Everything a province's dashboard shows, in one call.
 command.get(
   '/staff/overview',
@@ -54,26 +58,49 @@ command.get(
   staffRoute(async (req, res) => {
     const p = provinceFor(req, String(req.query.province ?? req.staff.province ?? ''))
     const dayAgo = Date.now() - 864e5
+    const help = all(
+      `SELECT * FROM help_requests WHERE province = ? AND (status IN ('new','assigned','on_the_way') OR updated_at > ?)
+       ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'assigned' THEN 1 WHEN 'on_the_way' THEN 2 ELSE 3 END, created_at`,
+      p,
+      dayAgo,
+    ).map((h) => ({ ...h, vulnerable: JSON.parse(h.vulnerable), needs: JSON.parse(h.needs) }))
+    const missing = all("SELECT * FROM missing_persons WHERE province = ? AND (status = 'open' OR updated_at > ?) ORDER BY created_at DESC", p, dayAgo)
+    const needs = all("SELECT * FROM needs WHERE province = ? AND status = 'pending' ORDER BY created_at", p)
+    const reports = all('SELECT * FROM reports WHERE province = ? AND created_at > ? ORDER BY hidden = 2 DESC, created_at DESC LIMIT 500', p, Date.now() - 48 * 3600_000)
+    const lostHeld = all('SELECT * FROM lost_found WHERE province = ? AND hidden = 2 ORDER BY created_at DESC', p)
     sendJson(
       req,
       res,
       {
         province: p,
         commandCenter: get('SELECT * FROM command_centers WHERE province = ?', p) ?? { province: p, active: 0 },
-        help: all(
-          `SELECT * FROM help_requests WHERE province = ? AND (status IN ('new','assigned','on_the_way') OR updated_at > ?)
-           ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'assigned' THEN 1 WHEN 'on_the_way' THEN 2 ELSE 3 END, created_at`,
-          p,
-          dayAgo,
-        ).map((h) => ({ ...h, vulnerable: JSON.parse(h.vulnerable), needs: JSON.parse(h.needs) })),
+        help,
         teams: all('SELECT id, province, name, kind, phone, status, lat, lng, located_at, created_at FROM teams WHERE province = ? ORDER BY name', p),
-        missing: all("SELECT * FROM missing_persons WHERE province = ? AND (status = 'open' OR updated_at > ?) ORDER BY created_at DESC", p, dayAgo),
+        missing,
         shelters: all('SELECT * FROM shelters WHERE province = ? ORDER BY name', p),
-        needs: all("SELECT * FROM needs WHERE province = ? AND status = 'pending' ORDER BY created_at", p),
-        reports: all('SELECT * FROM reports WHERE province = ? AND created_at > ? ORDER BY created_at DESC LIMIT 500', p, Date.now() - 36 * 3600_000),
+        needs,
+        reports,
+        lostHeld,
+        checks: { help: checkMap('help', help), missing: checkMap('missing', missing), need: checkMap('need', needs), report: checkMap('report', reports), lost: checkMap('lost', lostHeld) },
       },
       { maxAge: 0 },
     )
+  }),
+)
+
+const CHECK_TABLES = { report: 'reports', lost: 'lost_found', help: 'help_requests', missing: 'missing_persons', need: 'needs' }
+/** Ask น้องใจดี to check something again now (after new evidence, or once an API key is set). */
+command.post(
+  '/staff/checks/:kind/:id',
+  requireStaff,
+  rateLimit('recheck', 60, 10 * 60_000),
+  staffRoute(async (req, res) => {
+    const table = CHECK_TABLES[req.params.kind]
+    if (!table) throw new BadInput('kind')
+    const row = owned(req, table, req.params.id)
+    if (!row) return res.status(404).json({ error: 'not_found' })
+    await runCheck(req.params.kind, row.id)
+    res.json(staffCheck(get('SELECT * FROM ai_checks WHERE kind = ? AND ref_id = ?', req.params.kind, row.id)))
   }),
 )
 
@@ -321,6 +348,18 @@ command.patch(
     const row = owned(req, 'reports', req.params.id)
     if (!row) return res.status(404).json({ error: 'not_found' })
     run('UPDATE reports SET hidden = ? WHERE id = ?', req.body?.hidden ? 1 : 0, row.id)
+    res.json({ ok: true })
+  }),
+)
+
+/** Lost-and-found posts น้องใจดี held back: publish them, or keep them hidden. */
+command.patch(
+  '/staff/lost/:id',
+  requireStaff,
+  staffRoute(async (req, res) => {
+    const row = owned(req, 'lost_found', req.params.id)
+    if (!row) return res.status(404).json({ error: 'not_found' })
+    run('UPDATE lost_found SET hidden = ? WHERE id = ?', req.body?.hidden ? 1 : 0, row.id)
     res.json({ ok: true })
   }),
 )

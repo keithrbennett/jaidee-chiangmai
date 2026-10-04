@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { MapMode } from '../../lib/map/modes'
 import { useI18n } from '../../i18n'
 import { api, useApi } from '../../lib/api'
 import { href, navigate } from '../../lib/router'
@@ -11,10 +12,10 @@ import { Button } from '../ui'
 import { NationalMap } from './NationalMap'
 
 /** Full-screen national map. */
-export function MapPage() {
+export function MapPage({ mode }: { mode?: MapMode }) {
   return (
     <div className="h-[calc(100dvh-7.5rem)] md:h-[calc(100dvh-6.5rem)]">
-      <NationalMap full />
+      <NationalMap key={mode ?? 'water'} full initialMode={mode} />
     </div>
   )
 }
