@@ -31,20 +31,20 @@ function toPlace(e) {
  * One query over the province's bounding box (area queries are much slower on the public servers), then
  * only the places inside the province's outline.
  */
-export async function fetchPlaces(code) {
+export async function fetchPlaces(code, { servers = OVERPASS, timeoutMs = 100_000 } = {}) {
   const p = PROVINCES.find((x) => x.code === code)
   if (!p) throw new Error(`no province ${code}`)
   const [w, s, e, n] = p.bbox
   const box = `${s},${w},${n},${e}`
   const query = `[out:json][timeout:90];(nwr["amenity"~"^(hospital|police|fire_station)$"](${box});nwr["name"~"ป้องกันและบรรเทาสาธารณภัย"](${box}););out center tags;`
   let lastErr
-  for (const url of OVERPASS) {
+  for (const url of servers) {
     try {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'User-Agent': UA, Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(100_000),
+        signal: AbortSignal.timeout(timeoutMs),
       })
       if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`)
       const body = await res.json()
