@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react'
+import { AlertsPage } from './components/alerts/Alerts'
 import { BottomNav, EmergencyStrip, Footer, Header } from './components/Header'
 import { Command } from './components/pages/Command'
 import { Home } from './components/pages/Home'
@@ -7,6 +8,7 @@ import { Provinces } from './components/pages/Provinces'
 import { MyTasks, NeedPage, PostNeed, VolunteerList } from './components/pages/Volunteer'
 import { ProvincePage } from './components/province/ProvincePage'
 import { useI18n } from './i18n'
+import { useApi, type Alert } from './lib/api'
 import { tabOf, useRoute } from './lib/router'
 
 // The flood model and its 3D city are big; load them only when someone opens the simulator.
@@ -16,6 +18,9 @@ export default function App() {
   const { m, lang } = useI18n()
   const route = useRoute()
   const tab = tabOf(route)
+  // Alerts feed the home page, the alerts page and the badge on the nav.
+  const alerts = useApi<Alert[]>('/alerts', 5 * 60_000)
+  const danger = (alerts.data ?? []).filter((a) => a.level === 3).length
 
   useEffect(() => {
     const page =
@@ -37,9 +42,10 @@ export default function App() {
   return (
     <div className="flex min-h-full flex-col bg-paper text-ink">
       <EmergencyStrip />
-      <Header tab={tab} />
+      <Header tab={tab} danger={danger} />
       <main className={`flex flex-1 flex-col ${fullHeight ? 'min-h-0' : ''}`}>
-        {route.name === 'home' && <Home />}
+        {route.name === 'home' && <Home alerts={alerts.data} />}
+        {route.name === 'alerts' && <AlertsPage alerts={alerts.data} />}
         {route.name === 'map' && <MapPage />}
         {route.name === 'provinces' && <Provinces />}
         {route.name === 'province' && <ProvincePage key={route.province.code} province={route.province} section={route.section} />}
@@ -62,7 +68,7 @@ export default function App() {
       </main>
       {!fullHeight && <Footer />}
       <div className="sticky bottom-0 z-[1000]">
-        <BottomNav tab={tab} />
+        <BottomNav tab={tab} danger={danger} />
       </div>
     </div>
   )

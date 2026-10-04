@@ -1,11 +1,11 @@
 import type { GeoJSONSource, LayerSpecification, Map as MlMap, SourceSpecification } from 'maplibre-gl'
-import type { Camera, Dam, RainRow, Report, Shelter, Station } from '../api'
-import { LEVEL_COLOR, RAIN_CLASSES, STATUS_COLOR, damColor, isReceded, reportOpacity, stationStatus } from '../water'
+import type { AirStation, Camera, Dam, HotspotRow, Quake, RainRow, Report, Shelter, Station } from '../api'
+import { AQI_COLOR, LEVEL_COLOR, RAIN_CLASSES, STATUS_COLOR, damColor, isReceded, quakeColor, reportOpacity, stationStatus } from '../water'
 
 /**
  * Data layers for our maps. Each `show…` adds its sources and layers the first time and only updates the
- * data after that, so it is safe to call on every style load and every refresh. River gauges and dams are
- * drawn as 3D columns: height = how full, colour = status.
+ * data after that, so it is safe to call on every style load and every refresh. Markers are plain dots
+ * with short labels, coloured by status, so the map reads at a glance.
  */
 
 type FC = GeoJSON.FeatureCollection
@@ -29,80 +29,57 @@ const point = (lng: number, lat: number, properties: Record<string, unknown>): G
   geometry: { type: 'Point', coordinates: [lng, lat] },
 })
 
-/** A round column footprint: a polygon of `steps` sides, `radius` metres across. */
-function disc(lng: number, lat: number, radius: number, properties: Record<string, unknown>, steps = 18): GeoJSON.Feature {
-  const dLat = radius / 111_320
-  const dLng = radius / (111_320 * Math.cos((lat * Math.PI) / 180))
-  const ring = Array.from({ length: steps + 1 }, (_, i) => {
-    const a = (i / steps) * 2 * Math.PI
-    return [lng + dLng * Math.cos(a), lat + dLat * Math.sin(a)]
-  })
-  return { type: 'Feature', properties, geometry: { type: 'Polygon', coordinates: [ring] } }
-}
-
-export interface ColumnScale {
-  /** Footprint radius in metres. */
-  radius: number
-  /** Column height in metres per percent of bank-full (or of dam capacity). */
-  perPct: number
-  /** Above this zoom the columns give way to flat dots. */
-  maxzoom?: number
-}
-
 // ---- River gauges --------------------------------------------------------------------------------------
 
-export function showStations(map: MlMap, stations: Station[], scale: ColumnScale, label: (s: Station) => string) {
-  const props = (s: Station) => {
-    const status = stationStatus(s)
-    return { code: s.code, status, color: STATUS_COLOR[status], label: label(s), rank: status === 'over' ? 0 : status === 'high' ? 1 : 2 }
-  }
-  setSource(map, 'jd-st-col', {
+/**
+ * Gauges as dots: red and bigger when over the bank, orange when high, small and quiet otherwise. Zoomed
+ * out, only the ones that matter (over or high) show, so the map reads at a glance. Zoomed in, each gets a
+ * short label: how far over or under the bank.
+ */
+export function showStations(map: MlMap, stations: Station[], label: (s: Station) => string) {
+  setSource(map, 'jd-st', {
     type: 'FeatureCollection',
-    features: stations.map((s) => disc(s.lng, s.lat, scale.radius, { ...props(s), height: Math.min(160, Math.max(4, s.pct ?? 20)) * scale.perPct })),
+    features: stations.map((s) => {
+      const status = stationStatus(s)
+      const rank = status === 'over' ? 0 : status === 'high' ? 1 : 2
+      return point(s.lng, s.lat, { code: s.code, color: STATUS_COLOR[status], rank, label: rank < 2 ? label(s) : '' , short: label(s) })
+    }),
   })
-  setSource(map, 'jd-st-pt', { type: 'FeatureCollection', features: stations.map((s) => point(s.lng, s.lat, props(s))) })
-  const maxzoom = scale.maxzoom ?? 12
-  addLayer(map, {
-    id: 'jd-st-col',
-    type: 'fill-extrusion',
-    source: 'jd-st-col',
-    maxzoom,
-    paint: {
-      'fill-extrusion-color': ['get', 'color'],
-      'fill-extrusion-height': ['get', 'height'],
-      'fill-extrusion-opacity': 0.88,
-      'fill-extrusion-vertical-gradient': true,
+  addLayer(
+    map,
+    {
+      id: 'jd-st',
+      type: 'circle',
+      source: 'jd-st',
+      // Zoomed out, hide the normal ones.
+      filter: ['any', ['<', ['get', 'rank'], 2], ['>=', ['zoom'], 8]],
+      layout: { 'circle-sort-key': ['-', 3, ['get', 'rank']] },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, ['match', ['get', 'rank'], 0, 6, 1, 4.5, 3], 12, ['match', ['get', 'rank'], 0, 11, 1, 9, 7]],
+        'circle-color': ['get', 'color'],
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 5, 1.2, 12, 2.5],
+      },
     },
-  })
-  addLayer(map, {
-    id: 'jd-st-pt',
-    type: 'circle',
-    source: 'jd-st-pt',
-    minzoom: maxzoom - 1,
-    layout: { 'circle-sort-key': ['-', 3, ['get', 'rank']] },
-    paint: {
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 5, 15, 9],
-      'circle-color': ['get', 'color'],
-      'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 2,
-    },
-  })
+    undefined,
+  )
   addLayer(
     map,
     {
       id: 'jd-st-label',
       type: 'symbol',
-      source: 'jd-st-pt',
-      minzoom: Math.max(9, maxzoom - 2),
+      source: 'jd-st',
+      minzoom: 7,
+      filter: ['any', ['<', ['get', 'rank'], 2], ['>=', ['zoom'], 11]],
       layout: {
-        'text-field': ['get', 'label'],
+        'text-field': ['get', 'short'],
         'text-font': ['Noto Sans Bold'],
         'text-size': 11,
-        'text-offset': [0, 1.2],
+        'text-offset': [0, 1.25],
         'text-anchor': 'top',
         'symbol-sort-key': ['get', 'rank'],
       },
-      paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
+      paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#ffffff', 'text-halo-width': 1.8 },
     },
     undefined,
   )
@@ -110,30 +87,153 @@ export function showStations(map: MlMap, stations: Station[], scale: ColumnScale
 
 // ---- Dams ------------------------------------------------------------------------------------------------
 
-export function showDams(map: MlMap, dams: Dam[], scale: ColumnScale, label: (d: Dam) => string) {
-  setSource(map, 'jd-dam-col', {
-    type: 'FeatureCollection',
-    features: dams.map((d) => disc(d.lng, d.lat, scale.radius, { id: d.id, color: damColor(d.storagePct), height: Math.max(5, d.storagePct ?? 0) * scale.perPct }, 28)),
-  })
-  setSource(map, 'jd-dam-pt', { type: 'FeatureCollection', features: dams.map((d) => point(d.lng, d.lat, { id: d.id, label: label(d), color: damColor(d.storagePct) })) })
-  addLayer(map, {
-    id: 'jd-dam-col',
-    type: 'fill-extrusion',
-    source: 'jd-dam-col',
-    paint: { 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-height': ['get', 'height'], 'fill-extrusion-opacity': 0.75 },
-  })
+/** Dams as a blue dot with how full they are written beside it. */
+export function showDams(map: MlMap, dams: Dam[], label: (d: Dam) => string) {
+  setSource(map, 'jd-dam', { type: 'FeatureCollection', features: dams.map((d) => point(d.lng, d.lat, { id: d.id, label: label(d), color: damColor(d.storagePct) })) })
+  addLayer(
+    map,
+    {
+      id: 'jd-dam',
+      type: 'circle',
+      source: 'jd-dam',
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 5, 12, 10], 'circle-color': ['get', 'color'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 },
+    },
+    undefined,
+  )
   addLayer(
     map,
     {
       id: 'jd-dam-label',
       type: 'symbol',
-      source: 'jd-dam-pt',
-      minzoom: 5.5,
-      layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Bold'], 'text-size': 12, 'text-offset': [0, -1.4] },
+      source: 'jd-dam',
+      minzoom: 6,
+      layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-offset': [0.9, 0], 'text-anchor': 'left' },
       paint: { 'text-color': ['get', 'color'], 'text-halo-color': '#ffffff', 'text-halo-width': 1.8 },
     },
     undefined,
   )
+}
+
+// ---- Fire, earthquakes, dust, satellite flooding --------------------------------------------------------
+
+/** Fire hotspots: a warm glow zoomed out, then dots by age (newest brightest), the way fire maps show them. */
+export function showHotspots(map: MlMap, rows: HotspotRow[]) {
+  const now = Date.now()
+  setSource(map, 'jd-fire', {
+    type: 'FeatureCollection',
+    features: rows.map((r) => point(r[0], r[1], { age: (now - new Date(r[5]).getTime()) / 3600_000, frp: r[4] ?? 1 })),
+  })
+  addLayer(map, {
+    id: 'jd-fire-heat',
+    type: 'heatmap',
+    source: 'jd-fire',
+    maxzoom: 9,
+    paint: {
+      'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 4, 6, 9, 18],
+      'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 4, 0.8, 9, 1.5],
+      'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.8, 9, 0],
+      'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 0.2, 'rgba(255,214,10,0.5)', 0.5, 'rgba(255,149,0,0.75)', 1, 'rgba(255,59,48,0.9)'],
+    },
+  })
+  addLayer(
+    map,
+    {
+      id: 'jd-fire',
+      type: 'circle',
+      source: 'jd-fire',
+      minzoom: 6.5,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 3, 13, 7],
+        'circle-color': ['step', ['get', 'age'], '#ff3b30', 12, '#ff9500', 18, '#ffcc00'],
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1,
+      },
+    },
+    undefined,
+  )
+}
+
+/** Earthquakes: circle size by magnitude, colour by how recent; magnitude written on the bigger ones. */
+export function showQuakes(map: MlMap, quakes: Quake[]) {
+  setSource(map, 'jd-quake', {
+    type: 'FeatureCollection',
+    features: quakes.map((q) => point(q.lng, q.lat, { id: q.id, mag: q.mag ?? 0, color: quakeColor(q.at), label: q.mag !== null && q.mag >= 4 ? `M${q.mag}` : '' })),
+  })
+  addLayer(
+    map,
+    {
+      id: 'jd-quake',
+      type: 'circle',
+      source: 'jd-quake',
+      layout: { 'circle-sort-key': ['get', 'mag'] },
+      paint: {
+        'circle-radius': ['interpolate', ['exponential', 1.6], ['get', 'mag'], 3, 4, 5, 10, 7, 24],
+        'circle-color': ['get', 'color'],
+        'circle-opacity': 0.75,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.5,
+      },
+    },
+    undefined,
+  )
+  addLayer(
+    map,
+    {
+      id: 'jd-quake-label',
+      type: 'symbol',
+      source: 'jd-quake',
+      layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-allow-overlap': true },
+      paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,0.45)', 'text-halo-width': 1 },
+    },
+    undefined,
+  )
+}
+
+/** Air stations as coloured circles with the AQI number in them, the way air-quality maps show it. */
+export function showAirStations(map: MlMap, stations: AirStation[]) {
+  setSource(map, 'jd-air', {
+    type: 'FeatureCollection',
+    features: stations.map((a) => point(a.lng, a.lat, { id: a.id, aqi: a.aqi, color: AQI_COLOR[aqiBandOf(a.aqi)] })),
+  })
+  addLayer(
+    map,
+    {
+      id: 'jd-air',
+      type: 'circle',
+      source: 'jd-air',
+      layout: { 'circle-sort-key': ['get', 'aqi'] },
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 9, 10, 15], 'circle-color': ['get', 'color'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 },
+    },
+    undefined,
+  )
+  addLayer(
+    map,
+    {
+      id: 'jd-air-label',
+      type: 'symbol',
+      source: 'jd-air',
+      layout: { 'text-field': ['to-string', ['get', 'aqi']], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 5, 9, 10, 13], 'text-allow-overlap': true },
+      paint: { 'text-color': '#1d1d1f' },
+    },
+    undefined,
+  )
+}
+const aqiBandOf = (aqi: number) => (aqi <= 25 ? 0 : aqi <= 50 ? 1 : aqi <= 100 ? 2 : aqi <= 200 ? 3 : 4)
+
+/** Flooded cells seen by satellite in a province: soft blue dots, one per cell (~0.12 km²). */
+export function showSatFloodCells(map: MlMap, cells: [number, number, number][]) {
+  setSource(map, 'jd-satflood', { type: 'FeatureCollection', features: cells.map(([lng, lat, area]) => point(lng, lat, { area })) })
+  addLayer(map, {
+    id: 'jd-satflood',
+    type: 'circle',
+    source: 'jd-satflood',
+    paint: {
+      'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 8, 1.5, 12, 6, 15, 40],
+      'circle-color': '#0a84ff',
+      'circle-opacity': ['interpolate', ['linear'], ['get', 'area'], 0, 0.25, 120000, 0.7],
+      'circle-blur': 0.3,
+    },
+  })
 }
 
 // ---- Rain ------------------------------------------------------------------------------------------------

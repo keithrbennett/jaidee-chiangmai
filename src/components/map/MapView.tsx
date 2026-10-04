@@ -56,10 +56,15 @@ export default function MapView({ bounds, center, zoom, pitch = 50, bearing = -1
     })
     if (cam.controls) map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
     map.on('style.load', () => latest.current.onStyle?.(map))
+    // On small maps the credits would cover the legend: show them first, then fold them behind the (i) button.
+    const fold = setTimeout(() => {
+      if (el.current && el.current.clientWidth < 640) el.current.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show')
+    }, 5000)
     mapRef.current = map
     latest.current.onMap?.(map)
     applied.current = { theme: t, lang: l }
     return () => {
+      clearTimeout(fold)
       map.remove()
       mapRef.current = null
     }

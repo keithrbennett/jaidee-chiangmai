@@ -1,14 +1,17 @@
 import type { Map as MlMap, MapLayerMouseEvent } from 'maplibre-gl'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from '../../i18n'
-import { api, type Report } from '../../lib/api'
+import { api, useApi, type Report } from '../../lib/api'
+import { aqiBand } from '../../lib/conditions'
 import { loadProvinceShapes, loadTambons, useGeo } from '../../lib/geo'
-import { showAreas, showCameras, showDams, showRain, showReports, showShelters, showStations } from '../../lib/map/layers'
+import { hide, showAirStations, showAreas, showCameras, showDams, showHotspots, showQuakes, showRain, showReports, showSatFloodCells, showShelters, showStations } from '../../lib/map/layers'
+import { MODE_LAYERS, type MapMode } from '../../lib/map/modes'
 import { clickable, openPopup } from '../../lib/map/popup'
 import { clock } from '../../lib/time'
-import { LEVEL_COLOR, STATUS_COLOR, damColor, stationStatus } from '../../lib/water'
+import { AQI_COLOR, LEVEL_COLOR, STATUS_COLOR, damColor, quakeColor, stationStatus } from '../../lib/water'
 import { Icon } from '../Icon'
 import { GeoMessage, MapBox, inputCls } from '../kit'
+import { ModeSwitcher } from '../map/ModeSwitcher'
 import { MapView, provinceName, useGeolocation, useLocale } from '../../lib/ui'
 import { SectionPage, type ProvinceProps } from './ProvincePage'
 
@@ -41,6 +44,8 @@ export function ProvinceMapView({
   const [picking, setPicking] = useState(false)
   const tambons = useGeo(useMemo(() => (picking ? () => loadTambons(province.code) : null), [picking, province.code]))
   const [q, setQ] = useState('')
+  const [mode, setMode] = useState<MapMode>('water')
+  const satCells = useApi<[number, number, number][]>(mode === 'water' ? `/satflood/${province.code}` : null, 0)
   const mapRef = useRef<MlMap | null>(null)
   const latest = useRef({ data, reports, m, locale })
   useEffect(() => {
@@ -55,17 +60,22 @@ export function ProvinceMapView({
         showAreas(map, 'jd-prov', own, {}, 'code', 'rgba(94,92,230,0.7)')
       }
       if (data) {
-        showStations(map, data.stations, { radius: 1600, perPct: 140, maxzoom: 11 }, (s) =>
-          s.over === null ? '' : s.over > 0 ? m.status.overBy(s.over.toFixed(2)) : m.status.belowBy(Math.abs(s.over).toFixed(2)),
+        showStations(map, data.stations, (s) =>
+          s.over === null ? '' : s.over > 0 ? `+${s.over.toFixed(2)} ${m.common.m}` : `${s.over.toFixed(2)} ${m.common.m}`,
         )
-        showDams(map, data.dams, { radius: 3000, perPct: 140 }, (d) => `${lang === 'th' ? d.th : d.en} ${Math.round(d.storagePct ?? 0)}%`)
+        showDams(map, data.dams, (d) => `${lang === 'th' ? d.th : d.en} ${Math.round(d.storagePct ?? 0)}%`)
         showRain(map, data.rain)
         showShelters(map, data.shelters)
         showCameras(map, data.cctv)
+        showAirStations(map, data.air)
+        showHotspots(map, data.hotspots)
+        showQuakes(map, data.quakes)
       }
+      if (satCells.data) showSatFloodCells(map, satCells.data)
       if (reports) showReports(map, reports)
+      for (const k of Object.keys(MODE_LAYERS) as MapMode[]) hide(map, MODE_LAYERS[k], k !== mode)
     },
-    [shapes, data, reports, province.code, m, lang],
+    [shapes, data, reports, satCells.data, mode, province.code, m, lang],
   )
   const drawRef = useRef(draw)
   useEffect(() => {
@@ -93,10 +103,10 @@ export function ProvinceMapView({
   const onMap = useCallback(
     (map: MlMap) => {
       mapRef.current = map
-      clickable(map, ['jd-st-col', 'jd-st-pt', 'jd-dam-col', 'jd-rep', 'jd-shelter', 'jd-cam', 'jd-rain-pt'])
+      clickable(map, ['jd-st', 'jd-dam', 'jd-rep', 'jd-shelter', 'jd-cam', 'jd-rain-pt', 'jd-air', 'jd-quake'])
       map.on('click', (e: MapLayerMouseEvent) => {
         const { data: d, reports: reps, m: mm, locale: loc } = latest.current
-        const layers = ['jd-rep', 'jd-shelter', 'jd-cam', 'jd-st-pt', 'jd-st-col', 'jd-dam-col', 'jd-rain-pt'].filter((l) => map.getLayer(l))
+        const layers = ['jd-rep', 'jd-shelter', 'jd-cam', 'jd-st', 'jd-dam', 'jd-rain-pt', 'jd-air', 'jd-quake'].filter((l) => map.getLayer(l) && map.getLayoutProperty(l, 'visibility') !== 'none')
         const f = map.queryRenderedFeatures(e.point, { layers })[0]
         if (!f) return
         const p = f.properties as Record<string, unknown>
@@ -121,7 +131,7 @@ export function ProvinceMapView({
               { text: mm.updates.receded, onClick: () => vote(r, 'receded') },
             ],
           })
-        } else if (id === 'jd-st-pt' || id === 'jd-st-col') {
+        } else if (id === 'jd-st') {
           const s = d?.stations.find((x) => x.code === p.code)
           if (!s) return
           const st = stationStatus(s)
@@ -135,7 +145,7 @@ export function ProvinceMapView({
               `${s.code} · ${mm.common.measured(clock(s.observedAt, loc))} · ${mm.status.agency[s.agency] ?? s.agency}`,
             ],
           })
-        } else if (id === 'jd-dam-col') {
+        } else if (id === 'jd-dam') {
           const dam = d?.dams.find((x) => x.id === p.id)
           if (dam)
             openPopup(map, [dam.lng, dam.lat], {
@@ -160,6 +170,23 @@ export function ProvinceMapView({
               image: c.kind === 'image' ? `${c.url}?t=${Date.now()}` : undefined,
               link: c.kind === 'link' ? { href: c.url, text: mm.cctv.openViewer, external: true } : undefined,
             })
+        } else if (id === 'jd-air') {
+          const a = d?.air.find((x) => x.id === p.id)
+          if (a)
+            openPopup(map, [a.lng, a.lat], {
+              badge: { text: `AQI ${a.aqi} · ${mm.air.bands[aqiBand(a.aqi)]}`, color: AQI_COLOR[aqiBand(a.aqi)] },
+              title: a.th,
+              lines: [a.pm25 !== null && mm.air.pm25(a.pm25), `${clock(a.observedAt, loc)} · Air4Thai`],
+            })
+        } else if (id === 'jd-quake') {
+          const qk = d?.quakes.find((x) => x.id === p.id)
+          if (qk)
+            openPopup(map, [qk.lng, qk.lat], {
+              badge: { text: mm.quakes.mag(qk.mag ?? 0), color: quakeColor(qk.at) },
+              title: qk.place ?? '',
+              lines: [qk.near, qk.distance !== undefined && mm.quakes.distance(qk.distance), qk.depth !== null && mm.quakes.depth(qk.depth), clock(qk.at, loc), qk.tsunami && mm.quakes.tsunami],
+              link: qk.url ? { href: qk.url, text: mm.alerts.official, external: true } : undefined,
+            })
         } else if (id === 'jd-rain-pt') {
           openPopup(map, e.lngLat, { title: String(p.name), lines: [`${mm.rain.last24}: ${mm.common.mm(String(p.mm))}`, String(p.agency)] })
         }
@@ -173,7 +200,8 @@ export function ProvinceMapView({
     <div className="flex flex-col gap-2">
       <MapBox className={className}>
         <MapView bounds={province.bbox as [number, number, number, number]} pitch={55} bearing={-12} onMap={onMap} onStyle={(map) => drawRef.current(map)} />
-        <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+        <ModeSwitcher mode={mode} onChange={setMode} />
+        <div className="absolute bottom-3 left-3 flex flex-wrap gap-1.5">
           <button
             onClick={async () => {
               const pt = await geo.locate()
@@ -188,7 +216,7 @@ export function ProvinceMapView({
           </button>
         </div>
         {picking && (
-          <div className="absolute left-3 top-16 z-10 flex w-72 flex-col gap-2 rounded-[16px] bg-card p-3 shadow-lg">
+          <div className="absolute bottom-16 left-3 z-10 flex w-72 flex-col gap-2 rounded-[16px] bg-card p-3 shadow-lg">
             <input className={inputCls} value={q} onChange={(e) => setQ(e.target.value)} placeholder={m.common.search} autoFocus />
             <ul className="max-h-60 overflow-y-auto">
               {matches.map((t) => (

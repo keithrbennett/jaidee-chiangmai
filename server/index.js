@@ -16,6 +16,8 @@ const { claude } = await import('./routes/claude.js')
 const { command } = await import('./routes/command.js')
 const { community } = await import('./routes/community.js')
 const { data } = await import('./routes/data.js')
+const { hazardRoutes } = await import('./routes/hazards.js')
+const { startPush } = await import('./push.js')
 const { bootstrapAdmin } = await import('./lib/auth.js')
 
 const PORT = Number(process.env.PORT ?? 8787)
@@ -26,7 +28,7 @@ app.disable('x-powered-by')
 if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY)
 // Report and lost-and-found photos come as data URLs; everything else is small.
 app.use('/api', express.json({ limit: '2mb' }))
-app.use('/api', data, community, command, claude)
+app.use('/api', data, hazardRoutes, community, command, claude)
 app.use('/api', (_req, res) => res.status(404).json({ error: 'not_found' }))
 
 // Serve the production build if it exists (npm run build && npm start).
@@ -37,6 +39,7 @@ if (existsSync(dist)) {
 }
 
 bootstrapAdmin()
+startPush()
 
 app.listen(PORT, (err) => {
   // Express 5 passes listen errors (e.g. EADDRINUSE) here instead of throwing.

@@ -11,8 +11,8 @@ import { BadInput, int, ipHash, lngLat, oneOf, rateLimit, route, sendJson, str }
 
 export const community = express.Router()
 
-/** Reports older than this drop off the map (the client fades them from 12 h). */
-const REPORT_HOURS = 36
+/** Reports older than this (from the last "still flooded") drop off the map; the client fades them as they age. */
+const REPORT_HOURS = 48
 const TRENDS = ['rising', 'steady', 'falling']
 const PASSABLE = ['car', 'high', 'boat']
 const LOST_KINDS = ['lost', 'found']

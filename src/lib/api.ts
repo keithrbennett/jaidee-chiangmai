@@ -101,7 +101,50 @@ export interface National {
   updatedAt: number | null
 }
 
+/** One alert from the warning engine (server/alerts.js). Level 1 watch, 2 warning, 3 danger. */
+export interface Alert {
+  id: string
+  hazard: 'flood' | 'rain' | 'landslide' | 'air' | 'fire' | 'quake' | 'tsunami'
+  kind?: 'river' | 'satellite'
+  level: 1 | 2 | 3
+  provinces: string[]
+  data: Record<string, unknown>
+  at: string
+  source: string
+  url?: string
+}
+
+export interface Quake {
+  id: string
+  place: string | null
+  near: string | null
+  lat: number
+  lng: number
+  depth: number | null
+  mag: number | null
+  at: string
+  tsunami: boolean
+  url: string | null
+  source: 'tmd' | 'usgs'
+  distance?: number
+}
+
+/** Compact fire hotspot: [lng, lat, province, land use, fire power MW, time ISO, country]. */
+export type HotspotRow = [number, number, string | null, string | null, number | null, string, string | null]
+
+export interface Hazards {
+  hotspots: HotspotRow[]
+  quakes: Quake[]
+  /** Flooded H3 cells (about 0.06 km² of water each on average) per province, past 7 days. */
+  satFlood: Record<string, number>
+}
+
 export interface ProvinceData {
+  alerts: Alert[]
+  hotspots: HotspotRow[]
+  quakes: Quake[]
+  satFloodCells: number
+  airForecast: { date: string; mean: number; max: number }[] | null
   stations: Station[]
   rain: RainRow[]
   dams: Dam[]

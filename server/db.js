@@ -179,6 +179,25 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at INTEGER NOT NULL
 );
 
+-- Browsers that asked for alerts (Web Push): which provinces, which hazards, from what level, in what language.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  endpoint TEXT PRIMARY KEY,
+  keys TEXT NOT NULL,
+  provinces TEXT NOT NULL,         -- JSON array of province codes
+  hazards TEXT NOT NULL,           -- JSON array: flood, rain, landslide, air, fire, quake, tsunami
+  min_level INTEGER NOT NULL DEFAULT 2,
+  lang TEXT NOT NULL DEFAULT 'th',
+  created_at INTEGER NOT NULL
+);
+
+-- Alerts already pushed, so each alert (at each level) goes out once.
+CREATE TABLE IF NOT EXISTS sent_alerts (
+  id TEXT NOT NULL,
+  level INTEGER NOT NULL,
+  sent_at INTEGER NOT NULL,
+  PRIMARY KEY (id, level)
+);
+
 -- Volunteer needs (Jaidee). Posted by anyone, shown once a staff member has checked them.
 CREATE TABLE IF NOT EXISTS needs (
   id TEXT PRIMARY KEY,

@@ -1,146 +1,138 @@
 import type { Map as MlMap, MapLayerMouseEvent } from 'maplibre-gl'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { PROVINCES } from '../../data/provinces'
 import { useI18n } from '../../i18n'
-import { useApi, type Camera, type National, type RainRow, type Report, type Shelter } from '../../lib/api'
+import { useApi, type AirStation, type Camera, type Hazards, type National, type RainRow, type Report, type Shelter } from '../../lib/api'
+import { aqiBand } from '../../lib/conditions'
 import { loadProvinceShapes, useGeo } from '../../lib/geo'
-import { hide, showAreas, showCameras, showDams, showRadar, showRain, showReports, showShelters, showStations } from '../../lib/map/layers'
+import { MODE_LAYERS as LAYERS, type MapMode } from '../../lib/map/modes'
+import { hide, showAirStations, showAreas, showCameras, showDams, showHotspots, showQuakes, showRadar, showRain, showReports, showShelters, showStations } from '../../lib/map/layers'
 import { clickable, openPopup } from '../../lib/map/popup'
 import { useRadar } from '../../lib/radar'
 import { provinceHref } from '../../lib/router'
 import { clock } from '../../lib/time'
-import { LEVEL_COLOR, RAIN_CLASSES, STATUS_COLOR, damColor, stationStatus } from '../../lib/water'
+import { MapView, provinceName, useLocale } from '../../lib/ui'
+import { AQI_COLOR, LEVEL_COLOR, RAIN_CLASSES, STATUS_COLOR, damColor, quakeColor, stationStatus } from '../../lib/water'
 import { Icon } from '../Icon'
 import { MapBox } from '../kit'
-import { MapView, provinceName, useLocale } from '../../lib/ui'
+import { ModeSwitcher } from '../map/ModeSwitcher'
 
-export type LayerKey = 'stations' | 'rain' | 'radar' | 'dams' | 'reports' | 'shelters' | 'cameras'
-const LAYER_IDS: Record<LayerKey, string[]> = {
-  stations: ['jd-st-col', 'jd-st-pt', 'jd-st-label'],
-  rain: ['jd-rain-heat', 'jd-rain-pt'],
-  radar: ['jd-radar'],
-  dams: ['jd-dam-col', 'jd-dam-label'],
-  reports: ['jd-rep'],
-  shelters: ['jd-shelter', 'jd-shelter-label'],
-  cameras: ['jd-cam'],
-}
-
+const CLICKABLE = ['jd-rep', 'jd-shelter', 'jd-cam', 'jd-st', 'jd-dam', 'jd-rain-pt', 'jd-air', 'jd-quake', 'jd-fire', 'jd-prov-fill']
 const byCode = new Map(PROVINCES.map((p) => [p.code, p]))
 
 /**
- * Thailand in 3D: every river gauge as a column (height = how full, colour = status), large dams, rain,
- * radar, people's reports, shelters and cameras. Provinces with rivers over the bank are tinted; click a
- * province to open it.
+ * Thailand by hazard: pick water, rain, dust, fire or earthquake and the map shows just that, with its own
+ * legend and province shading. Tap a dot for details, or a shaded province to open it.
  */
-export function NationalMap({ full = false }: { full?: boolean }) {
+export function NationalMap({ full = false, initialMode = 'water' }: { full?: boolean; initialMode?: MapMode }) {
   const { m, lang } = useI18n()
   const locale = useLocale()
+  const [mode, setMode] = useState<MapMode>(initialMode)
   const national = useApi<National>('/national')
-  const rain = useApi<RainRow[]>('/rain')
+  const hazards = useApi<Hazards>('/hazards')
+  const rain = useApi<RainRow[]>(mode === 'rain' ? '/rain' : null)
+  const air = useApi<AirStation[]>(mode === 'air' ? '/air' : null)
   const reports = useApi<Report[]>('/reports', 2 * 60_000)
   const shelters = useApi<Shelter[]>('/shelters')
   const cameras = useApi<Camera[]>(full ? '/cctv' : null)
   const shapes = useGeo(loadProvinceShapes)
   const radar = useRadar()
-  const [on, setOn] = useState<Record<LayerKey, boolean>>({
-    stations: true,
-    rain: true,
-    radar: false,
-    dams: true,
-    reports: true,
-    shelters: true,
-    cameras: false,
-  })
   const mapRef = useRef<MlMap | null>(null)
 
-  // Provinces with a gauge over the bank (red) or high (orange).
-  const provinceColors = useMemo(() => {
-    const worst: Record<string, number> = {}
-    for (const s of national.data?.stations ?? []) {
-      if (!s.province) continue
-      const st = stationStatus(s)
-      const rank = st === 'over' ? 2 : st === 'high' ? 1 : 0
-      worst[s.province] = Math.max(worst[s.province] ?? 0, rank)
+  // Province shading for the mode: what needs attention, nothing else.
+  const shading = useMemo(() => {
+    const out: Record<string, string> = {}
+    if (mode === 'water') {
+      for (const [code, cells] of Object.entries(hazards.data?.satFlood ?? {})) if (cells >= 50) out[code] = '#64d2ff'
+      for (const s of national.data?.stations ?? []) {
+        if (!s.province) continue
+        const st = stationStatus(s)
+        if (st === 'over') out[s.province] = STATUS_COLOR.over
+        else if (st === 'high' && out[s.province] !== STATUS_COLOR.over) out[s.province] = STATUS_COLOR.high
+      }
+    } else if (mode === 'air') {
+      for (const a of air.data ?? []) {
+        if (!a.province) continue
+        const b = aqiBand(a.aqi)
+        if (b >= 2 && (!out[a.province] || AQI_COLOR.indexOf(out[a.province]) < b)) out[a.province] = AQI_COLOR[b]
+      }
+    } else if (mode === 'fire') {
+      const n: Record<string, number> = {}
+      for (const h of hazards.data?.hotspots ?? []) if (h[2]) n[h[2]] = (n[h[2]] ?? 0) + 1
+      for (const [code, c] of Object.entries(n)) out[code] = c >= 40 ? '#ff3b30' : c >= 10 ? '#ff9500' : '#ffcc00'
     }
-    return Object.fromEntries(Object.entries(worst).filter(([, r]) => r > 0).map(([code, r]) => [code, r === 2 ? STATUS_COLOR.over : STATUS_COLOR.high]))
-  }, [national.data])
+    return out
+  }, [mode, national.data, hazards.data, air.data])
 
   const draw = useCallback(
     (map: MlMap) => {
-      if (!map.isStyleLoaded() && !map.getSource('osm')) return
-      if (shapes) showAreas(map, 'jd-prov', shapes, provinceColors, 'code', 'rgba(120,110,160,0.35)')
+      if (!map.getSource('osm')) return
+      if (shapes) showAreas(map, 'jd-prov', shapes, shading, 'code', 'rgba(120,110,160,0.3)')
       if (national.data) {
-        showStations(map, national.data.stations, { radius: 3500, perPct: 450, maxzoom: 9 }, (s) =>
-          s.over === null ? '' : s.over > 0 ? m.status.overBy(s.over.toFixed(2)) : m.status.belowBy(Math.abs(s.over).toFixed(2)),
+        showStations(map, national.data.stations, (s) =>
+          s.over === null ? '' : s.over > 0 ? `+${s.over.toFixed(2)} ${m.common.m}` : `${s.over.toFixed(2)} ${m.common.m}`,
         )
-        showDams(map, national.data.dams, { radius: 7000, perPct: 500 }, (d) => `${lang === 'th' ? d.th : d.en} ${Math.round(d.storagePct ?? 0)}%`)
+        showDams(map, national.data.dams, (d) => `${lang === 'th' ? d.th : d.en} ${Math.round(d.storagePct ?? 0)}%`)
       }
-      if (rain.data) showRain(map, rain.data)
-      showRadar(map, radar.path, on.radar)
       if (reports.data) showReports(map, reports.data)
       if (shelters.data) showShelters(map, shelters.data)
-      if (cameras.data) showCameras(map, cameras.data, on.cameras)
-      for (const k of Object.keys(LAYER_IDS) as LayerKey[]) hide(map, LAYER_IDS[k], !on[k])
+      if (cameras.data) showCameras(map, cameras.data)
+      if (rain.data) showRain(map, rain.data)
+      showRadar(map, radar.path, mode === 'rain')
+      if (air.data) showAirStations(map, air.data)
+      if (hazards.data) {
+        showHotspots(map, hazards.data.hotspots)
+        showQuakes(map, hazards.data.quakes)
+      }
+      for (const k of Object.keys(LAYERS) as MapMode[]) hide(map, LAYERS[k], k !== mode)
     },
-    [shapes, provinceColors, national.data, rain.data, radar.path, reports.data, shelters.data, cameras.data, on, m, lang],
+    [shapes, shading, national.data, reports.data, shelters.data, cameras.data, rain.data, radar.path, air.data, hazards.data, mode, m, lang],
   )
   const drawRef = useRef(draw)
   useEffect(() => {
     drawRef.current = draw
-    if (mapRef.current?.getSource('osm')) draw(mapRef.current)
+    if (mapRef.current) draw(mapRef.current)
   }, [draw])
 
-  // Latest data for the click handler, which outlives a render.
-  const dataRef = useRef<PopupData>({ national: national.data, reports: reports.data, shelters: shelters.data, cameras: cameras.data, m, lang, locale })
+  // Earthquakes that matter to Thailand happen from Myanmar to Sumatra, so quake mode pulls back to show the region.
+  const wasQuake = useRef(false)
   useEffect(() => {
-    dataRef.current = { national: national.data, reports: reports.data, shelters: shelters.data, cameras: cameras.data, m, lang, locale }
+    const map = mapRef.current
+    if (!map) return
+    if (mode === 'quake') map.easeTo({ center: [101, 12], zoom: full ? 4.2 : 3.7, pitch: 0, bearing: 0, duration: 900 })
+    else if (wasQuake.current) map.easeTo({ center: [100.9, 13.4], zoom: full ? 5.4 : 5.1, pitch: 35, bearing: -6, duration: 900 })
+    wasQuake.current = mode === 'quake'
+  }, [mode, full])
+
+  // Latest data for the click handler, which outlives a render.
+  const dataRef = useRef<PopupData>({ national: national.data, hazards: hazards.data, air: air.data, reports: reports.data, shelters: shelters.data, cameras: cameras.data, m, lang, locale })
+  useEffect(() => {
+    dataRef.current = { national: national.data, hazards: hazards.data, air: air.data, reports: reports.data, shelters: shelters.data, cameras: cameras.data, m, lang, locale }
   })
 
   const onMap = useCallback((map: MlMap) => {
     mapRef.current = map
-    clickable(map, ['jd-st-col', 'jd-st-pt', 'jd-dam-col', 'jd-rep', 'jd-shelter', 'jd-cam', 'jd-rain-pt'])
+    clickable(map, CLICKABLE.filter((l) => l !== 'jd-prov-fill'))
     map.on('click', (e: MapLayerMouseEvent) => {
-      const layers = ['jd-rep', 'jd-shelter', 'jd-cam', 'jd-st-pt', 'jd-st-col', 'jd-dam-col', 'jd-rain-pt', 'jd-prov-fill'].filter((l) => map.getLayer(l))
+      const layers = CLICKABLE.filter((l) => map.getLayer(l) && map.getLayoutProperty(l, 'visibility') !== 'none')
       const f = map.queryRenderedFeatures(e.point, { layers })[0]
       if (f) popupFor(map, dataRef.current, f.layer.id, f.properties as Record<string, unknown>, e.lngLat)
     })
   }, [])
 
-  const toggles: [LayerKey, string, string][] = [
-    ['stations', m.layers.stations, STATUS_COLOR.normal],
-    ['rain', m.layers.rain, RAIN_CLASSES[1].color],
-    ['radar', m.layers.radar, '#64d2ff'],
-    ['dams', m.layers.dams, '#0a84ff'],
-    ['reports', m.layers.reports, LEVEL_COLOR[2]],
-    ['shelters', m.layers.shelters, '#30b0c7'],
-    ...(full ? ([['cameras', m.layers.cameras, '#5856d6']] as [LayerKey, string, string][]) : []),
-  ]
-
   return (
-    <MapBox className={full ? 'h-full rounded-none' : 'h-[62vh] min-h-[420px]'}>
-      <MapView center={[100.9, 13.4]} zoom={full ? 5.4 : 5.1} pitch={45} bearing={-8} onMap={onMap} onStyle={(map) => drawRef.current(map)} />
-      <div className="absolute left-3 top-3 flex max-w-[calc(100%-5rem)] flex-wrap gap-1.5">
-        {toggles.map(([k, label, color]) => (
-          <button
-            key={k}
-            onClick={() => setOn((o) => ({ ...o, [k]: !o[k] }))}
-            aria-pressed={on[k]}
-            className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[14px] font-medium shadow backdrop-blur ${
-              on[k] ? 'bg-card/95 text-ink' : 'bg-card/60 text-muted'
-            }`}
-          >
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: on[k] ? color : '#c7c7cc' }} />
-            {label}
-          </button>
-        ))}
-      </div>
-      <Legend radarTime={on.radar && radar.time ? clock(radar.time * 1000, locale) : null} />
+    <MapBox className={full ? 'h-full rounded-none' : 'h-[64vh] min-h-[440px]'}>
+      <MapView center={[100.9, 13.4]} zoom={full ? 5.4 : 5.1} pitch={35} bearing={-6} onMap={onMap} onStyle={(map) => drawRef.current(map)} />
+      <ModeSwitcher mode={mode} onChange={setMode} />
+      <Legend mode={mode} radarTime={mode === 'rain' && radar.time ? clock(radar.time * 1000, locale) : null} />
     </MapBox>
   )
 }
 
 interface PopupData {
   national: National | null
+  hazards: Hazards | null
+  air: AirStation[] | null
   reports: Report[] | null
   shelters: Shelter[] | null
   cameras: Camera[] | null
@@ -151,11 +143,14 @@ interface PopupData {
 
 function popupFor(map: MlMap, d: PopupData, layer: string, p: Record<string, unknown>, at: { lng: number; lat: number }) {
   const mm = d.m
-  if (layer === 'jd-st-pt' || layer === 'jd-st-col') {
+  const provLink = (code: string | null | undefined) => {
+    const prov = code ? byCode.get(code) : undefined
+    return prov ? { href: provinceHref(prov), text: provinceName(prov, d.lang) } : undefined
+  }
+  if (layer === 'jd-st') {
     const s = d.national?.stations.find((x) => x.code === p.code)
     if (!s) return
     const st = stationStatus(s)
-    const prov = s.province ? byCode.get(s.province) : undefined
     openPopup(map, [s.lng, s.lat], {
       badge: { text: mm.status[st], color: STATUS_COLOR[st] },
       title: `${s.name}${s.river ? ` · ${s.river}` : ''}`,
@@ -163,17 +158,18 @@ function popupFor(map: MlMap, d: PopupData, layer: string, p: Record<string, unk
         s.over !== null && (s.over > 0 ? mm.status.overBy(s.over.toFixed(2)) : mm.status.belowBy(Math.abs(s.over).toFixed(2))),
         s.pct !== null && mm.status.ofBank(Math.round(s.pct)),
         s.trend && mm.status.trend[s.trend],
-        `${s.code} · ${mm.common.measured(clock(s.observedAt, d.locale))} · ${mm.status.agency[s.agency] ?? s.agency}`,
+        `${mm.common.measured(clock(s.observedAt, d.locale))} · ${mm.status.agency[s.agency] ?? s.agency}`,
       ],
-      link: prov ? { href: provinceHref(prov), text: provinceName(prov, d.lang) } : undefined,
+      link: provLink(s.province),
     })
-  } else if (layer === 'jd-dam-col') {
+  } else if (layer === 'jd-dam') {
     const dam = d.national?.dams.find((x) => x.id === p.id)
     if (!dam) return
     openPopup(map, [dam.lng, dam.lat], {
       badge: { text: mm.home.damStorage(String(Math.round(dam.storagePct ?? 0))), color: damColor(dam.storagePct) },
       title: d.lang === 'th' ? `เขื่อน${dam.th}` : dam.en,
       lines: [mm.home.damFlow(String(dam.inflow ?? '–'), String(dam.released ?? '–')), `${dam.date} · ${dam.agency}`],
+      link: provLink(dam.province),
     })
   } else if (layer === 'jd-rep') {
     const r = d.reports?.find((x) => x.id === p.id)
@@ -199,57 +195,75 @@ function popupFor(map: MlMap, d: PopupData, layer: string, p: Record<string, unk
     openPopup(map, [c.lng, c.lat], {
       title: c.title,
       lines: [c.description],
-      image: c.kind === 'image' ? c.url : undefined,
+      image: c.kind === 'image' ? `${c.url}?t=${Date.now()}` : undefined,
       link: c.kind === 'link' ? { href: c.url, text: mm.cctv.openViewer, external: true } : undefined,
     })
   } else if (layer === 'jd-rain-pt') {
     openPopup(map, at, { title: String(p.name), lines: [`${mm.rain.last24}: ${mm.common.mm(String(p.mm))}`, String(p.agency)] })
+  } else if (layer === 'jd-air') {
+    const a = d.air?.find((x) => x.id === p.id)
+    if (!a) return
+    const b = aqiBand(a.aqi)
+    openPopup(map, [a.lng, a.lat], {
+      badge: { text: `AQI ${a.aqi} · ${mm.air.bands[b]}`, color: AQI_COLOR[b] },
+      title: d.lang === 'th' ? a.th : a.en,
+      lines: [a.pm25 !== null && mm.air.pm25(a.pm25), `${clock(a.observedAt, d.locale)} · Air4Thai`],
+      link: provLink(a.province),
+    })
+  } else if (layer === 'jd-quake') {
+    const q = d.hazards?.quakes.find((x) => x.id === p.id)
+    if (!q) return
+    openPopup(map, [q.lng, q.lat], {
+      badge: { text: mm.quakes.mag(q.mag ?? 0), color: quakeColor(q.at) },
+      title: q.place ?? '',
+      lines: [q.near, q.depth !== null && mm.quakes.depth(q.depth), clock(q.at, d.locale), q.tsunami && mm.quakes.tsunami, q.source === 'tmd' ? 'TMD' : 'USGS'],
+      link: q.url ? { href: q.url, text: mm.alerts.official, external: true } : undefined,
+    })
+  } else if (layer === 'jd-fire') {
+    const h = d.hazards?.hotspots.find((x) => Math.abs(x[0] - at.lng) < 0.05 && Math.abs(x[1] - at.lat) < 0.05)
+    openPopup(map, at, {
+      badge: { text: mm.fires.title, color: '#ff3b30' },
+      title: h?.[3] ?? h?.[6] ?? '',
+      lines: [h && clock(h[5], d.locale), 'GISTDA · VIIRS'],
+      link: provLink(h?.[2]),
+    })
   } else if (layer === 'jd-prov-fill') {
     const prov = byCode.get(String(p.code))
     if (prov) window.location.hash = provinceHref(prov).slice(1)
   }
 }
 
-function Legend({ radarTime }: { radarTime: string | null }) {
+function Legend({ mode, radarTime }: { mode: MapMode; radarTime: string | null }) {
   const { m } = useI18n()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
+  const dot = (color: string, label: string) => (
+    <span key={label} className="inline-flex items-center gap-1.5">
+      <span className="h-3 w-3 rounded-full" style={{ background: color }} />
+      {label}
+    </span>
+  )
+  const rows: Record<MapMode, ReactNode[]> = {
+    water: [
+      dot(STATUS_COLOR.over, m.status.over),
+      dot(STATUS_COLOR.high, m.status.high),
+      dot(STATUS_COLOR.normal, m.status.normal),
+      dot('#64d2ff', m.tiles.satFlood),
+      dot('#0a84ff', m.layers.dams),
+      dot('#30b0c7', m.layers.shelters),
+    ],
+    rain: [...m.rain.classes.map((c, i) => dot(RAIN_CLASSES[i].color, c)), ...(radarTime ? [<span key="r">{m.weather.radarTime(radarTime)}</span>] : [])],
+    air: m.air.bands.map((b, i) => dot(AQI_COLOR[i], b)),
+    fire: [dot('#ff3b30', '< 12 h'), dot('#ff9500', '12–18 h'), dot('#ffcc00', '18–24 h')],
+    quake: [dot('#ff3b30', m.weather.today), dot('#ff9500', m.quakes.thisWeek), <span key="q">{m.quakes.legend}</span>],
+  }
   return (
-    <div className="absolute bottom-3 left-3 max-w-[300px] rounded-[16px] bg-card/95 text-[13px] shadow-lg backdrop-blur">
-      <button onClick={() => setOpen(!open)} className="flex min-h-10 w-full items-center gap-2 px-3 font-semibold">
-        <Icon name="layers" size={18} />
-        {m.layers.legend}
-        {radarTime && <span className="font-normal text-muted">· {m.weather.radarTime(radarTime)}</span>}
-        <Icon name={open ? 'down' : 'up'} size={16} className="ml-auto" />
+    <div className="absolute bottom-3 left-3 max-w-[min(340px,calc(100%-1.5rem))] rounded-[16px] bg-card/95 text-[13px] shadow-lg backdrop-blur">
+      <button onClick={() => setOpen(!open)} className="flex min-h-9 w-full items-center gap-2 px-3 font-semibold">
+        <Icon name="layers" size={16} />
+        {m.modes[mode]}
+        <Icon name={open ? 'down' : 'up'} size={15} className="ml-auto" />
       </button>
-      {open && (
-        <div className="flex flex-col gap-2 px-3 pb-3">
-          <p className="text-muted">{m.layers.columnsNote}</p>
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {(['over', 'high', 'normal', 'low', 'veryLow'] as const).map((s) => (
-              <span key={s} className="inline-flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_COLOR[s] }} />
-                {m.status[s]}
-              </span>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {m.rain.classes.map((c, i) => (
-              <span key={c} className="inline-flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: RAIN_CLASSES[i].color }} />
-                {c}
-              </span>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {m.levels.short.map((c, i) => (
-              <span key={c} className="inline-flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: LEVEL_COLOR[i] }} />
-                {c}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {open && <div className="flex flex-wrap gap-x-3 gap-y-1.5 px-3 pb-3">{rows[mode]}</div>}
     </div>
   )
 }

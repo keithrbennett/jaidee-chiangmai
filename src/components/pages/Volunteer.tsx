@@ -56,7 +56,7 @@ export function VolunteerList() {
   }, [draw])
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 md:px-6">
+    <div className="mx-auto w-full flex max-w-6xl flex-col gap-6 px-4 py-6 md:px-6">
       <header className="flex flex-wrap items-end gap-3">
         <div className="mr-auto max-w-2xl">
           <h1 className="text-[34px] font-bold leading-tight">{m.volunteer.title}</h1>
@@ -148,10 +148,10 @@ export function NeedPage({ id }: { id: string }) {
       <Icon name="back" size={20} /> {m.volunteer.back}
     </a>
   )
-  if (needs.loading) return <div className="mx-auto max-w-3xl px-4 py-6"><Loading /></div>
+  if (needs.loading) return <div className="mx-auto w-full max-w-3xl px-4 py-6"><Loading /></div>
   if (!n)
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6">
+      <div className="mx-auto w-full flex max-w-3xl flex-col gap-4 px-4 py-6">
         {back}
         <p className="rounded-[18px] bg-card p-6 text-lg">{m.volunteer.notFound}</p>
       </div>
@@ -160,7 +160,7 @@ export function NeedPage({ id }: { id: string }) {
   const isSaved = saved.includes(n.id)
   const rules = m.safety[n.category as Category] ?? []
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
+    <div className="mx-auto w-full flex max-w-3xl flex-col gap-5 px-4 py-6">
       {back}
       <div className="flex flex-wrap items-center gap-2">
         <Pill tone="go" icon={CATEGORY_ICONS[n.category as Category] ?? 'heart'}>
@@ -231,7 +231,7 @@ export function MyTasks() {
   const [saved, setSaved] = useLocalStorage<string[]>(SAVED, [])
   const list = (needs.data ?? []).filter((n) => saved.includes(n.id))
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
+    <div className="mx-auto w-full flex max-w-3xl flex-col gap-5 px-4 py-6">
       <h1 className="text-[34px] font-bold">{m.volunteer.myTasks}</h1>
       {list.length ? (
         <ul className="flex flex-col gap-3">
@@ -266,7 +266,7 @@ export function PostNeed() {
   const [error, setError] = useState<string | null>(null)
   if (state === 'sent')
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6">
+      <div className="mx-auto w-full flex max-w-3xl flex-col gap-4 px-4 py-6">
         <h1 className="text-[34px] font-bold">{m.postNeed.title}</h1>
         <p className="rounded-[18px] bg-[#34c759]/15 p-5 text-lg font-semibold text-[#248a3d]">{m.postNeed.sent}</p>
         <Button
@@ -281,7 +281,7 @@ export function PostNeed() {
       </div>
     )
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
+    <div className="mx-auto w-full flex max-w-3xl flex-col gap-5 px-4 py-6">
       <h1 className="text-[34px] font-bold">{m.postNeed.title}</h1>
       <p className="text-lg text-muted">{m.postNeed.intro}</p>
       <section className="flex flex-col gap-2">

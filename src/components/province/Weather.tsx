@@ -5,7 +5,8 @@ import { weatherKind } from '../../lib/forecast'
 import { showRadar } from '../../lib/map/layers'
 import { useRadar } from '../../lib/radar'
 import { clock } from '../../lib/time'
-import { RAIN_CLASSES, rainClass } from '../../lib/water'
+import { AQI_COLOR, RAIN_CLASSES, pm25Band, rainClass } from '../../lib/water'
+import { aqiBand } from '../../lib/conditions'
 import { Icon } from '../Icon'
 import { Loading, MapBox, SectionTitle } from '../kit'
 import { MapView, provinceName, useLocale } from '../../lib/ui'
@@ -36,6 +37,7 @@ export function Weather({ province, data, dataError }: ProvinceProps) {
   const dayNames = [m.weather.today, m.weather.tomorrow, m.weather.dayAfter]
   const hourly = data?.forecast?.hourly ?? []
   const max = Math.max(2, ...hourly.map((h) => h[1] ?? 0))
+  const peak = hourly.reduce<(typeof hourly)[number] | null>((a, h) => ((h[1] ?? 0) > (a?.[1] ?? 0) ? h : a), null)
 
   return (
     <SectionPage province={province} title={m.weather.title(provinceName(province, lang))} wide>
@@ -63,6 +65,61 @@ export function Weather({ province, data, dataError }: ProvinceProps) {
         </section>
       )}
       <p className="-mt-3 text-sm text-faint">{m.weather.forecastNote}</p>
+
+      <section className="flex flex-col gap-3">
+        <SectionTitle icon="air" hue="orange">
+          {m.airForecast.title}
+        </SectionTitle>
+        <p className="-mt-1 text-[15px] text-muted">{m.airForecast.sub}</p>
+        {data?.airForecast && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {data.airForecast.map((d, i) => {
+              const b = pm25Band(d.mean)
+              return (
+                <div key={d.date} className="flex flex-col gap-1 rounded-[18px] bg-card p-4">
+                  <span className="text-[15px] font-semibold text-muted">
+                    {[m.weather.today, m.weather.tomorrow, m.weather.dayAfter][i] ?? new Date(d.date).toLocaleDateString(locale, { weekday: 'short', day: 'numeric' })}
+                  </span>
+                  <span className="flex items-baseline gap-1">
+                    <b className="text-[28px] tabular-nums" style={{ color: AQI_COLOR[b] }}>
+                      {Math.round(d.mean)}
+                    </b>
+                    <span className="text-sm text-muted">µg/m³</span>
+                  </span>
+                  <span className="text-[15px] font-medium" style={{ color: AQI_COLOR[b] }}>
+                    {m.air.bands[b]}
+                  </span>
+                  <span className="text-xs text-faint">max {Math.round(d.max)}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        {(data?.air.length ?? 0) > 0 && (
+          <>
+            <p className="font-semibold">{m.airForecast.stations}</p>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {[...data!.air]
+                .sort((a, b) => b.aqi - a.aqi)
+                .map((a) => (
+                  <li key={a.id} className="flex items-center gap-3 rounded-[14px] bg-card p-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-[#1d1d1f]" style={{ background: AQI_COLOR[aqiBand(a.aqi)] }}>
+                      {a.aqi}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{lang === 'th' ? a.th : a.en}</span>
+                      <span className="block text-sm text-muted">
+                        {m.air.bands[aqiBand(a.aqi)]}
+                        {a.pm25 !== null && ` · ${m.air.pm25(a.pm25)}`}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </>
+        )}
+        <p className="text-sm text-faint">Air4Thai (PCD) · CAMS / Open-Meteo</p>
+      </section>
 
       <section className="flex flex-col gap-3">
         <SectionTitle
@@ -106,7 +163,9 @@ export function Weather({ province, data, dataError }: ProvinceProps) {
             {m.weather.hourly}
           </SectionTitle>
           <div className="rounded-[18px] bg-card p-5">
-            <div className="flex h-28 items-end gap-[2px]">
+            <p className="mb-3 font-semibold">{peak && (peak[1] ?? 0) > 0 ? m.weather.hourlyPeak(peak[1] ?? 0, clock(peak[0], locale)) : m.weather.hourlyDry}</p>
+            <div className="relative flex h-28 items-end gap-[2px] border-t border-dashed border-line">
+              <span className="absolute -top-2.5 right-0 bg-card pl-1 text-xs text-faint">{m.common.mm(max)}</span>
               {hourly.map(([t, mm, chance]) => (
                 <span
                   key={t}
@@ -121,6 +180,7 @@ export function Weather({ province, data, dataError }: ProvinceProps) {
                 <span key={i}>{hourly[i] ? clock(hourly[i][0], locale) : ''}</span>
               ))}
             </div>
+            <p className="mt-2 text-xs text-faint">{m.weather.hourlyNote}</p>
           </div>
         </section>
       )}

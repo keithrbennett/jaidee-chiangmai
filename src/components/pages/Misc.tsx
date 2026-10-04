@@ -29,7 +29,7 @@ export function HelpStatus({ code }: { code: string }) {
   const [input, setInput] = useState(code)
   const step = status.data ? STEPS.indexOf(status.data.status as (typeof STEPS)[number]) : -1
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-5 px-4 py-6">
+    <div className="mx-auto w-full flex max-w-xl flex-col gap-5 px-4 py-6">
       <h1 className="text-[30px] font-bold">{m.helpStatus.title(code)}</h1>
       <form
         className="flex gap-2"
@@ -100,7 +100,7 @@ export function Track({ token }: { token: string }) {
   }, [sharing, token])
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-5 px-4 py-8">
+    <div className="mx-auto w-full flex max-w-md flex-col gap-5 px-4 py-8">
       <h1 className="text-[30px] font-bold">{m.track.title}</h1>
       {team.error ? (
         <p className="rounded-[16px] bg-card p-5 text-urgent">{m.track.invalid}</p>
@@ -124,7 +124,7 @@ export function Track({ token }: { token: string }) {
 export function Sources() {
   const { m } = useI18n()
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
+    <div className="mx-auto w-full flex max-w-3xl flex-col gap-6 px-4 py-6">
       <div>
         <h1 className="text-[34px] font-bold leading-tight">{m.sources.title}</h1>
         <p className="mt-1 text-lg text-muted">{m.sources.sub}</p>
@@ -155,6 +155,16 @@ export function Sources() {
           ))}
         </ul>
       </section>
+      <section className="flex flex-col gap-3">
+        <SectionTitle icon="bell" hue="red">
+          {m.alerts.rules.title}
+        </SectionTitle>
+        <ul className="flex list-disc flex-col gap-1.5 rounded-[16px] bg-card p-5 pl-9 text-[15px] text-muted">
+          {m.alerts.rules.items.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      </section>
       <ExternalLinks />
     </div>
   )
@@ -163,7 +173,7 @@ export function Sources() {
 export function About() {
   const { m } = useI18n()
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
+    <div className="mx-auto w-full flex max-w-3xl flex-col gap-5 px-4 py-6">
       <img src="/logo-full.png" alt="Jaidee CM" width={549} height={440} className="h-28 w-auto self-start dark:rounded-[20px] dark:bg-white dark:p-3" />
       <h1 className="text-[34px] font-bold">{m.about.title}</h1>
       {m.about.body.map((p) => (

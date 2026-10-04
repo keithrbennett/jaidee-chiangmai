@@ -7,6 +7,7 @@ import { PROVINCES, type Province } from '../data/provinces'
  *
  *   #/                              Thailand overview
  *   #/map                           national 3D map
+ *   #/alerts                        alerts by our warning rules, and alert notifications
  *   #/provinces                     choose a province
  *   #/p/<slug>                      a province: water now, forecast, what to do
  *   #/p/<slug>/<section>            map | weather | area | report | updates | lost-found | missing | help | open | cctv
@@ -23,6 +24,7 @@ export type Section = (typeof SECTIONS)[number]
 export type Route =
   | { name: 'home' }
   | { name: 'map' }
+  | { name: 'alerts' }
   | { name: 'provinces' }
   | { name: 'province'; province: Province; section: Section | null }
   | { name: 'helpStatus'; code: string }
@@ -37,7 +39,7 @@ export type Route =
   | { name: 'about' }
 
 /** Top-level areas, for the navigation highlight. */
-export type Tab = 'home' | 'map' | 'provinces' | 'volunteer' | 'flood' | 'more'
+export type Tab = 'home' | 'map' | 'alerts' | 'provinces' | 'volunteer' | 'flood' | 'more'
 
 const bySlug = new Map(PROVINCES.map((p) => [p.slug, p]))
 export const provinceByCode = new Map(PROVINCES.map((p) => [p.code, p]))
@@ -48,6 +50,8 @@ export function parseHash(hash: string): Route {
   switch (a) {
     case 'map':
       return { name: 'map' }
+    case 'alerts':
+      return { name: 'alerts' }
     case 'provinces':
       return { name: 'provinces' }
     case 'p': {
@@ -104,6 +108,7 @@ export function tabOf(route: Route): Tab {
   switch (route.name) {
     case 'home':
     case 'map':
+    case 'alerts':
     case 'flood':
       return route.name
     case 'provinces':

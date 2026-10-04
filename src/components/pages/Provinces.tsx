@@ -32,7 +32,7 @@ export function Provinces() {
     PROVINCES.filter((p) => p.region === r).sort((a, b) => (lang === 'th' ? a.th.localeCompare(b.th, 'th') : a.en.localeCompare(b.en)))
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-7 px-4 py-6 md:px-6">
+    <div className="mx-auto w-full flex max-w-5xl flex-col gap-7 px-4 py-6 md:px-6">
       <header className="flex flex-col gap-4">
         <div>
           <h1 className="text-[34px] font-bold leading-tight">{m.provinces.title}</h1>

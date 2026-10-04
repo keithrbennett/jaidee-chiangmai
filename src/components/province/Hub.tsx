@@ -4,110 +4,167 @@ import type { Station } from '../../lib/api'
 import { aqiBand } from '../../lib/conditions'
 import { next24 } from '../../lib/forecast'
 import { loadTambons, useGeo, type Tambon } from '../../lib/geo'
-import { href, provinceHref } from '../../lib/router'
+import type { IconName } from '../../lib/icons'
+import { provinceHref } from '../../lib/router'
 import { clock } from '../../lib/time'
-import { LEVEL_COLOR, RAIN_CLASSES, damColor, isReceded, km, rainClass, stationStatus, STATUS_ORDER } from '../../lib/water'
+import { useGeolocation, useLocale } from '../../lib/ui'
+import { ALERT_COLOR, AQI_COLOR, LEVEL_COLOR, RAIN_CLASSES, STATUS_COLOR, STATUS_ORDER, damColor, isReceded, km, quakeColor, rainClass, stationStatus } from '../../lib/water'
+import { AlertList, AlertSubscribe } from '../alerts/Alerts'
 import { Icon } from '../Icon'
-import { EmergencyNumbers, GeoMessage, IconBadge, Loading, SectionTitle, StationRow, Tile, inputCls } from '../kit'
-import { provinceName, useGeolocation, useLocale } from '../../lib/ui'
-import type { ProvinceProps } from './ProvincePage'
+import { EmergencyNumbers, GeoMessage, Loading, SectionTitle, StationRow, Tile, inputCls } from '../kit'
+import { ProvinceHeader, type ProvinceProps } from './ProvincePage'
 
 const NEAR_KM = 3
 
-/** A province at a glance, modelled on what people need in a flood: am I at risk, what's coming, what can I do. */
+/**
+ * A province's overview: today's alerts, one card per hazard, what to do, then the detail. Each hazard card
+ * leads to the tab where it lives.
+ */
 export function Hub({ province, data, dataError, reports }: ProvinceProps) {
   const { m, lang } = useI18n()
   const locale = useLocale()
-  const name = provinceName(province, lang)
   const center = data?.commandCenter
   const stations = useMemo(
     () => [...(data?.stations ?? [])].sort((a, b) => STATUS_ORDER.indexOf(stationStatus(a)) - STATUS_ORDER.indexOf(stationStatus(b)) || (b.pct ?? 0) - (a.pct ?? 0)),
     [data],
   )
   const [showAll, setShowAll] = useState(false)
-  const rain24 = data?.forecast ? next24(data.forecast) : null
-  const worstAir = [...(data?.air ?? [])].sort((a, b) => b.aqi - a.aqi)[0]
-  const wettest = [...(data?.rain ?? [])].sort((a, b) => (b[2] ?? 0) - (a[2] ?? 0))[0]
   const p = (s: Parameters<typeof provinceHref>[1]) => provinceHref(province, s)
 
+  // Card values.
+  const over = stations.filter((s) => stationStatus(s) === 'over').length
+  const high = stations.filter((s) => stationStatus(s) === 'high').length
+  const rain24 = data?.forecast ? next24(data.forecast) : null
+  const wettest = Math.max(0, ...(data?.rain ?? []).map((r) => r[2] ?? 0))
+  const worstAir = [...(data?.air ?? [])].sort((a, b) => b.aqi - a.aqi)[0]
+  const tomorrowPm = data?.airForecast?.[1]?.mean
+  const fires = data?.hotspots ?? []
+  const quake = [...(data?.quakes ?? [])].sort((a, b) => (b.mag ?? 0) / Math.max(1, (b.distance ?? 1) / 100) - (a.mag ?? 0) / Math.max(1, (a.distance ?? 1) / 100))[0]
+  const satKm2 = Math.round((data?.satFloodCells ?? 0) * 0.056)
+  const alertLevel = (h: string) => Math.max(0, ...(data?.alerts ?? []).filter((a) => a.hazard === h).map((a) => a.level))
+
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-7 px-4 py-5 md:px-6">
-      <header className="flex flex-wrap items-end gap-3">
-        <div className="mr-auto">
-          <p className="text-[15px] font-semibold text-muted">{m.regions[province.region]}</p>
-          <h1 className="text-[32px] font-bold leading-tight md:text-[40px]">{m.province.title(name)}</h1>
-        </div>
-        <a href={href({ name: 'provinces' })} className="inline-flex min-h-11 items-center gap-1 rounded-full border border-line px-4 font-medium text-link">
-          {m.province.change}
-        </a>
-      </header>
+    <div className="mx-auto w-full flex max-w-5xl flex-col gap-7 px-4 py-5 md:px-6">
+      <ProvinceHeader province={province} section={null} />
 
-      <a href={p('report')} className="group flex items-center gap-4 rounded-[22px] bg-gradient-to-br from-[#0a84ff] to-[#5e5ce6] p-5 text-white shadow-lg md:p-6">
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-white/20">
-          <Icon name="flood" size={32} />
-        </span>
-        <span className="flex-1">
-          <span className="block text-[24px] font-bold leading-tight">{m.province.report}</span>
-          <span className="block text-white/85">{m.province.reportSub}</span>
-        </span>
-        <Icon name="forward" size={28} className="transition-transform group-hover:translate-x-1" />
-      </a>
+      {data && data.alerts.length > 0 && <AlertList alerts={data.alerts} showProvinces={false} />}
 
-      {center?.active ? (
-        <section className="flex flex-col gap-3 rounded-[22px] border-2 border-[#34c759] bg-card p-5">
-          <p className="flex items-center gap-2 text-lg font-bold text-[#34c759]">
-            <Icon name="lifebuoy" />
-            {center.name ? m.province.centerOpen(center.name) : m.province.centerOpenDefault}
-          </p>
-          {center.hotline && (
-            <a href={`tel:${center.hotline}`} className="font-semibold text-link">
-              {m.province.centerHotline(center.hotline)}
-            </a>
-          )}
-          <div className="grid gap-2 sm:grid-cols-2">
-            <a href={p('help')} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-urgent px-5 text-lg font-semibold text-white">
-              <Icon name="lifebuoy" /> {m.province.askHelp}
-            </a>
-            <a href={p('missing')} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border-2 border-ink px-5 text-lg font-semibold">
-              <Icon name="person" /> {m.province.findPerson}
-            </a>
-          </div>
-        </section>
+      {!data ? (
+        <Loading error={dataError} />
       ) : (
-        <section className="flex flex-col gap-2 rounded-[22px] bg-card p-5">
-          <p className="text-lg font-bold">{m.province.centerClosed}</p>
-          <p className="text-muted">{m.province.centerClosedSub}</p>
-          <a href={p('open')} className="mt-1 inline-flex items-center gap-1 self-start text-[15px] font-semibold text-link">
-            {m.province.agencies} <Icon name="forward" size={16} />
-          </a>
+        <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <HazardCard
+            href={p('map')}
+            icon="flood"
+            color={over ? STATUS_COLOR.over : high ? STATUS_COLOR.high : STATUS_COLOR.normal}
+            level={alertLevel('flood')}
+            title={m.tiles.rivers}
+            value={over ? m.tiles.riversOver(over) : high ? m.tiles.riversHigh(high) : m.tiles.riversOk(stations.length)}
+            sub={stations[0] ? `${stations[0].name}${stations[0].over !== null ? ` · ${stations[0].over > 0 ? '+' : ''}${stations[0].over.toFixed(2)} ${m.common.m}` : ''}` : m.tiles.noData}
+          />
+          <HazardCard
+            href={p('weather')}
+            icon="cloud"
+            color={RAIN_CLASSES[Math.max(0, rainClass(rain24?.total ?? 0))].color}
+            level={Math.max(alertLevel('rain'), alertLevel('landslide'))}
+            title={m.tiles.rain}
+            value={rain24 ? (rainClass(rain24.total) < 0 ? m.rain.none : m.rain.classes[rainClass(rain24.total)]) : m.tiles.noData}
+            sub={`${rain24 ? m.tiles.rainNext(rain24.total.toFixed(0)) : ''}${wettest ? ` · ${m.tiles.rainPast(wettest)}` : ''}`}
+          />
+          <HazardCard
+            href={p('weather')}
+            icon="air"
+            color={worstAir ? AQI_COLOR[aqiBand(worstAir.aqi)] : '#8e8e93'}
+            level={alertLevel('air')}
+            title={m.tiles.air}
+            value={worstAir ? `AQI ${worstAir.aqi}` : m.tiles.noData}
+            sub={`${worstAir ? m.air.bands[aqiBand(worstAir.aqi)] : ''}${tomorrowPm !== undefined ? ` · ${m.tiles.airTomorrow(tomorrowPm)}` : ''}`}
+          />
+          <HazardCard
+            href={p('map')}
+            icon="fire"
+            color={fires.length >= 40 ? '#ff3b30' : fires.length >= 10 ? '#ff9500' : fires.length ? '#ffcc00' : '#34c759'}
+            level={alertLevel('fire')}
+            title={m.tiles.fire}
+            value={m.tiles.fireCount(fires.length)}
+            sub={m.tiles.fireSub}
+          />
+          <HazardCard
+            href={p('map')}
+            icon="quake"
+            color={quake ? quakeColor(quake.at) : '#34c759'}
+            level={Math.max(alertLevel('quake'), alertLevel('tsunami'))}
+            title={m.tiles.quake}
+            value={quake?.mag ? `M${quake.mag}` : m.tiles.quakeNone}
+            sub={quake ? m.tiles.quakeSub(quake.distance ?? 0, clock(quake.at, locale)) : ''}
+          />
+          <HazardCard
+            href={p('map')}
+            icon="wave"
+            color={satKm2 ? '#0a84ff' : '#34c759'}
+            level={0}
+            title={m.tiles.satFlood}
+            value={satKm2 ? m.tiles.satFloodValue(satKm2) : m.tiles.satFloodNone}
+            sub={m.tiles.satFloodSub}
+          />
         </section>
       )}
+
+      <section className="grid gap-3 md:grid-cols-2">
+        {center?.active ? (
+          <div className="flex flex-col gap-3 rounded-[22px] bg-[#34c759]/12 p-5">
+            <p className="flex items-center gap-2 text-lg font-bold text-[#248a3d]">
+              <Icon name="lifebuoy" />
+              {center.name ? m.province.centerOpen(center.name) : m.province.centerOpenDefault}
+            </p>
+            {center.hotline && (
+              <a href={`tel:${center.hotline}`} className="font-semibold text-link">
+                {m.province.centerHotline(center.hotline)}
+              </a>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <a href={p('help')} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-urgent px-5 font-semibold text-white">
+                <Icon name="lifebuoy" size={20} /> {m.province.askHelp}
+              </a>
+              <a href={p('missing')} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-card px-5 font-semibold">
+                <Icon name="person" size={20} /> {m.province.findPerson}
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 rounded-[22px] bg-card p-5">
+            <p className="text-lg font-bold">{m.province.centerClosed}</p>
+            <p className="text-muted">{m.province.centerClosedSub}</p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {['1784', '1669', '191'].map((n) => (
+                <a key={n} href={`tel:${n}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-urgent px-4 font-bold text-white">
+                  <Icon name="phone" size={16} /> {n}
+                </a>
+              ))}
+            </div>
+            <a href={p('open')} className="mt-1 text-[15px] font-semibold text-link">
+              {m.province.agencies}
+            </a>
+          </div>
+        )}
+        <a href={p('report')} className="group flex flex-col justify-between gap-3 rounded-[22px] bg-gradient-to-br from-[#30b0c7] to-[#0a84ff] p-5 text-white">
+          <span className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white/20">
+              <Icon name="camera" size={24} />
+            </span>
+            <b className="text-xl">{m.province.report}</b>
+          </span>
+          <span className="text-white/90">{m.province.reportSub}</span>
+          <span className="inline-flex items-center gap-1 font-semibold">
+            {m.province.sections.updates} <Icon name="forward" size={18} className="transition-transform group-hover:translate-x-1" />
+          </span>
+        </a>
+      </section>
 
       <NearMe stations={data?.stations ?? []} reports={reports ?? []} shelters={data?.shelters ?? []} provinceCode={province.code} />
 
       <section className="flex flex-col gap-3">
-        <SectionTitle icon="cloud" hue="blue" action={<a href={p('weather')} className="text-[15px] font-semibold text-link">{m.province.sections.weather}</a>}>
-          {m.rain.next24}
-        </SectionTitle>
-        {rain24 ? (
-          <div className="rounded-[18px] bg-card p-5">
-            <p className="text-[24px] font-bold" style={{ color: RAIN_CLASSES[Math.max(0, rainClass(rain24.total))].color }}>
-              {rainClass(rain24.total) < 0 ? m.rain.none : m.rain.classes[rainClass(rain24.total)]}
-            </p>
-            <p className="text-muted">
-              {m.rain.summary(rain24.total.toFixed(1), rain24.chance)}
-              {rain24.start && ` · ${m.rain.startsAround(clock(rain24.start, locale))}`}
-            </p>
-            <RainBars hours={rain24.hours} />
-          </div>
-        ) : (
-          <Loading error={dataError} />
-        )}
-        {wettest && (wettest[2] ?? 0) > 0 && <p className="text-[15px] text-muted">{m.rain.last24}: {m.rain.wettest(wettest[2] ?? 0, wettest[5])}</p>}
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <SectionTitle icon="flood" hue="teal" action={<a href={p('map')} className="text-[15px] font-semibold text-link">{m.common.seeMap}</a>}>
+        <SectionTitle icon="flood" hue="blue" action={<a href={p('map')} className="text-[15px] font-semibold text-link">{m.common.seeMap}</a>}>
           {m.province.rivers}
         </SectionTitle>
         {!data ? (
@@ -115,11 +172,11 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
         ) : stations.length ? (
           <>
             <ul className="flex flex-col gap-2">
-              {(showAll ? stations : stations.slice(0, 6)).map((s) => (
+              {(showAll ? stations : stations.slice(0, 5)).map((s) => (
                 <StationRow key={s.code} s={s} />
               ))}
             </ul>
-            {stations.length > 6 && !showAll && (
+            {stations.length > 5 && !showAll && (
               <button onClick={() => setShowAll(true)} className="self-start font-semibold text-link">
                 {m.common.seeAll} ({stations.length})
               </button>
@@ -128,83 +185,55 @@ export function Hub({ province, data, dataError, reports }: ProvinceProps) {
         ) : (
           <p className="rounded-[16px] bg-card p-5 text-muted">{m.province.riversNone}</p>
         )}
-        <p className="text-sm text-faint">{m.common.source('RID SWOC · Thaiwater (HII)')}</p>
-      </section>
-
-      {(data?.dams.length ?? 0) > 0 && (
-        <section className="flex flex-col gap-3">
-          <SectionTitle icon="dam" hue="blue">
-            {m.province.dams}
-          </SectionTitle>
+        {(data?.dams.length ?? 0) > 0 && (
           <ul className="grid gap-2 sm:grid-cols-2">
             {data!.dams.map((d) => (
               <li key={d.id} className="flex items-center gap-3 rounded-[16px] bg-card p-4">
-                <b className="text-[26px] tabular-nums" style={{ color: damColor(d.storagePct) }}>
-                  {Math.round(d.storagePct ?? 0)}%
-                </b>
-                <span>
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[10px] bg-paper">
+                  <div className="absolute inset-x-0 bottom-0" style={{ height: `${Math.min(100, d.storagePct ?? 0)}%`, background: damColor(d.storagePct) }} />
+                </div>
+                <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{lang === 'th' ? `เขื่อน${d.th}` : d.en}</span>
                   <span className="block text-sm text-muted">{m.home.damFlow(String(d.inflow ?? '–'), String(d.released ?? '–'))}</span>
                 </span>
+                <b className="text-lg tabular-nums" style={{ color: damColor(d.storagePct) }}>
+                  {Math.round(d.storagePct ?? 0)}%
+                </b>
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+        <p className="text-sm text-faint">{m.common.source('RID SWOC · Thaiwater (HII)')}</p>
+      </section>
 
       <section className="grid gap-3 sm:grid-cols-2">
-        <Tile href={p('map')} icon="map" hue="teal" title={m.province.sections.map} sub={m.province.sections.mapSub} />
         <Tile href={p('area')} icon="pin" hue="green" title={m.province.sections.area} sub={m.province.sections.areaSub} />
-        <Tile href={p('weather')} icon="cloud" hue="blue" title={m.province.sections.weather} sub={m.province.sections.weatherSub} />
-        <Tile href={p('updates')} icon="list" hue="orange" title={m.province.sections.updates} sub={m.province.sections.updatesSub} />
         <Tile href={p('cctv')} icon="camera" hue="indigo" title={m.province.sections.cctv} sub={m.province.sections.cctvSub} />
         <Tile href={p('lost-found')} icon="box" hue="pink" title={m.province.sections.lostFound} sub={m.province.sections.lostFoundSub} />
         <Tile href={p('missing')} icon="person" hue="purple" title={m.province.sections.missing} sub={m.province.sections.missingSub} />
-        <Tile href={p('help')} icon="lifebuoy" hue="red" title={m.province.askHelp} sub={m.home.actions.helpSub} />
       </section>
 
-      {worstAir && (
-        <section className="flex items-center gap-4 rounded-[18px] bg-card p-4">
-          <IconBadge icon="air" hue={aqiBand(worstAir.aqi) >= 3 ? 'orange' : 'green'} />
-          <div>
-            <p className="font-semibold">
-              {m.province.air}: AQI {worstAir.aqi} · {m.air.bands[aqiBand(worstAir.aqi)]}
-            </p>
-            <p className="text-sm text-muted">
-              {m.air.worst(lang === 'th' ? worstAir.th : worstAir.en)}
-              {worstAir.pm25 !== null && ` · ${m.air.pm25(worstAir.pm25)}`} · Air4Thai
-            </p>
-          </div>
-        </section>
-      )}
-
+      <AlertSubscribe province={province.code} />
       <ExternalLinks />
       <EmergencyNumbers social rid />
     </div>
   )
 }
 
-function RainBars({ hours }: { hours: [string, number, number][] }) {
-  const locale = useLocale()
-  const max = Math.max(2, ...hours.map((h) => h[1] ?? 0))
+function HazardCard({ href, icon, color, level, title, value, sub }: { href: string; icon: IconName; color: string; level: number; title: string; value: string; sub: string }) {
   return (
-    <div className="mt-4">
-      <div className="flex h-20 items-end gap-[3px]">
-        {hours.map(([t, mm, chance]) => (
-          <span
-            key={t}
-            title={`${clock(t, locale)} · ${mm} mm · ${chance}%`}
-            className="flex-1 rounded-t-[3px]"
-            style={{ height: `${Math.max(2, ((mm ?? 0) / max) * 100)}%`, background: (mm ?? 0) > 0 ? RAIN_CLASSES[Math.max(0, rainClass((mm ?? 0) * 6))].color : 'var(--hairline)', opacity: 0.4 + (chance ?? 0) / 170 }}
-          />
-        ))}
-      </div>
-      <div className="mt-1 flex justify-between text-xs text-faint">
-        {[0, 6, 12, 18].map((i) => (
-          <span key={i}>{hours[i] ? clock(hours[i][0], locale) : ''}</span>
-        ))}
-      </div>
-    </div>
+    <a href={href} className="relative flex min-h-36 flex-col gap-1.5 overflow-hidden rounded-[20px] bg-card p-4 transition hover:shadow-[0_6px_24px_rgb(0_0_0/0.08)]">
+      <span className="absolute inset-x-0 top-0 h-1" style={{ background: color }} />
+      <span className="flex items-center gap-2 text-[15px] font-semibold text-muted">
+        <span className="flex h-7 w-7 items-center justify-center rounded-[8px] text-white" style={{ background: color }}>
+          <Icon name={icon} size={16} />
+        </span>
+        {title}
+        {level > 0 && <span className="ml-auto h-2.5 w-2.5 rounded-full" style={{ background: ALERT_COLOR[level] }} />}
+      </span>
+      <b className="text-[22px] font-bold leading-tight md:text-[26px]">{value}</b>
+      <span className="line-clamp-2 text-sm leading-snug text-muted">{sub}</span>
+    </a>
   )
 }
 

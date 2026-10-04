@@ -80,7 +80,7 @@ function Login({ onIn }: { onIn: (s: Staff) => void }) {
   const [error, setError] = useState(false)
   return (
     <form
-      className="mx-auto flex max-w-sm flex-col gap-4 px-4 py-10"
+      className="mx-auto w-full flex max-w-sm flex-col gap-4 px-4 py-10"
       onSubmit={async (e) => {
         e.preventDefault()
         try {
@@ -125,7 +125,7 @@ function Dashboard({ me, onOut }: { me: Staff; onOut: () => void }) {
     needs: data?.needs.length,
   }
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-5 md:px-6">
+    <div className="mx-auto w-full flex max-w-6xl flex-col gap-5 px-4 py-5 md:px-6">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="mr-auto text-[28px] font-bold">{m.command.title}</h1>
         {me.role === 'admin' ? (

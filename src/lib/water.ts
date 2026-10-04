@@ -34,22 +34,21 @@ export const STALE_HOURS = 6
 export const ageHours = (iso: string | number) => (Date.now() - new Date(iso).getTime()) / 3600_000
 
 /**
- * What people report: 0 dry or below the ankle (<10 cm), 1 ankle–knee (10–50), 2 knee–waist (50–100),
- * 3 waist–chest (100–130), 4 chest and up (130–180), 5 over the head / roof (>180).
+ * Our depth scale, by what the water does to people and cars: 0 no flooding (<10 cm), 1 ankle to mid-shin
+ * (10–30, small cars struggle), 2 knee (30–60, cars stall), 3 waist (60–100, wading is dangerous),
+ * 4 chest (100–150, boats only), 5 over head height (>150).
  */
 export const LEVELS = [0, 1, 2, 3, 4, 5] as const
 export const LEVEL_COLOR = ['#34c759', '#ffcc00', '#ff9500', '#ff3b30', '#af52de', '#5e2a84']
-export const LEVEL_CM = ['< 10', '10–50', '50–100', '100–130', '130–180', '> 180']
+export const LEVEL_CM = ['< 10', '10–30', '30–60', '60–100', '100–150', '> 150']
 
-/** Reports fade at 12 and 24 hours and leave the map at 36 (counting from the last "still flooded"). */
+/** Reports stay 48 hours from the last "still flooded", growing paler as they age. */
+export const REPORT_HOURS = 48
 export function reportAge(r: Report) {
   const last = Math.max(r.createdAt, r.lastStillAt ?? 0)
   return (Date.now() - last) / 3600_000
 }
-export const reportOpacity = (r: Report) => {
-  const h = reportAge(r)
-  return h < 12 ? 1 : h < 24 ? 0.6 : 0.35
-}
+export const reportOpacity = (r: Report) => Math.max(0.3, 1 - (reportAge(r) / REPORT_HOURS) * 0.7)
 /** Someone said the water has gone down since the last "still flooded". */
 export const isReceded = (r: Report) => !!r.recededAt && r.recededAt >= (r.lastStillAt ?? 0)
 
@@ -82,4 +81,20 @@ export function damColor(pct: number | null) {
 export function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const k = Math.cos(((a.lat + b.lat) / 2) * (Math.PI / 180))
   return Math.hypot((a.lng - b.lng) * k, a.lat - b.lat) * 111.2
+}
+
+/** Alert levels: 1 watch, 2 warning, 3 danger (0 = nothing). */
+export const ALERT_COLOR = ['#34c759', '#ffcc00', '#ff9500', '#ff3b30']
+
+/** Thai AQI band colours (blue, green, yellow, orange, red), as the Pollution Control Department uses them. */
+export const AQI_COLOR = ['#3bccff', '#34c759', '#ffd60a', '#ff9500', '#ff3b30']
+/** Thai PM2.5 bands in µg/m³ (24-hour average): 0–15, 15–25, 25–37.5, 37.5–75, 75+. */
+export function pm25Band(v: number) {
+  return v <= 15 ? 0 : v <= 25 ? 1 : v <= 37.5 ? 2 : v <= 75 ? 3 : 4
+}
+
+/** Earthquake colour by age: today red, this week orange, older yellow (as quake maps usually do). */
+export function quakeColor(at: string) {
+  const h = (Date.now() - new Date(at).getTime()) / 3600_000
+  return h < 24 ? '#ff3b30' : h < 168 ? '#ff9500' : '#ffcc00'
 }

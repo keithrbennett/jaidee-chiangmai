@@ -4,11 +4,19 @@ import http from 'node:http'
 import https from 'node:https'
 import { all, get } from '../db.js'
 import { feeds, isProvince } from '../feeds.js'
+import { hazards } from '../hazards.js'
+import { alerts } from '../push.js'
+import { PROVINCES } from '../lib/geo.js'
 import { route, sendJson } from '../lib/util.js'
 
 export const data = express.Router()
 
 const inProvince = (code) => (x) => x.province === code
+const PROVINCE_CENTER = new Map(PROVINCES.map((p) => [p.code, p.center]))
+const km = (a, b) => {
+  const k = Math.cos(((a[1] + b[1]) / 2) * (Math.PI / 180))
+  return Math.hypot((a[0] - b[0]) * k, a[1] - b[1]) * 111.2
+}
 
 data.get(
   '/national',
@@ -41,15 +49,27 @@ data.get(
   route(async (req, res) => {
     const code = req.params.code
     if (!isProvince(code)) return res.status(404).json({ error: 'no_such_province' })
-    const [stations, rain, national, air, forecast, cctv] = await Promise.all([
+    const [stations, rain, national, air, forecast, cctv, hotspots, quakes, satFloodCounts, airForecast, alertList] = await Promise.all([
       feeds.stations.get(),
       feeds.rain.get(),
       feeds.national.get(),
       feeds.air.get(),
       feeds.forecast.get(),
       feeds.cctv.get(),
+      hazards.hotspots.get(),
+      hazards.quakes.get(),
+      hazards.satFlood.get(),
+      hazards.airForecast.get(),
+      alerts.get(),
     ])
+    const p = PROVINCE_CENTER.get(code)
     sendJson(req, res, {
+      alerts: (alertList ?? []).filter((a) => a.provinces.includes(code)),
+      hotspots: (hotspots ?? []).filter(inProvince(code)).map((h) => [h.lng, h.lat, h.province, h.landuse, h.frp, h.at, h.country]),
+      // Earthquakes in the last 7 days within 1,000 km of the province centre.
+      quakes: (quakes ?? []).filter((q) => km(p, [q.lng, q.lat]) <= 1000).map((q) => ({ ...q, distance: Math.round(km(p, [q.lng, q.lat])) })),
+      satFloodCells: satFloodCounts?.[code] ?? 0,
+      airForecast: airForecast?.[code] ?? null,
       stations: (stations ?? []).filter(inProvince(code)),
       rain: (rain ?? []).filter((r) => r[4] === code),
       dams: (national?.dams ?? []).filter(inProvince(code)),
