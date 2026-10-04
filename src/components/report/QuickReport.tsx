@@ -58,18 +58,21 @@ export function QuickReportForm({ prefill, onClose, onSent }: { prefill: ReportP
     }
   }, [where, lang])
 
-  // After sending: wait for the check (rules take a few seconds; the model up to half a minute).
+  // After sending: wait for the check (rules take a few seconds; the model up to half a minute). Without
+  // the model, the rules' answer is the last one.
+  const done = !!sent?.check && (sent.check.ai || ai === false)
+  const sentId = sent?.id
   useEffect(() => {
-    if (!sent || (sent.check && sent.check.ai) ) return
+    if (!sentId || done) return
     let tries = 0
     const t = setInterval(async () => {
       tries++
-      const r = await api<Report>(`/reports/${sent.id}`).catch(() => null)
+      const r = await api<Report>(`/reports/${sentId}`).catch(() => null)
       if (r?.check) setSent(r)
-      if (tries > 20 || r?.check?.ai) clearInterval(t)
+      if (tries > 20) clearInterval(t)
     }, 2500)
     return () => clearInterval(t)
-  }, [sent])
+  }, [sentId, done])
 
   async function pickPhoto(f: File | undefined) {
     if (!f) return
