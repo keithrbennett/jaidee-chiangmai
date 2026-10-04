@@ -13,7 +13,8 @@
 //   { type: 'done' }
 import { get } from '../db.js'
 import { MODEL, anthropic } from './claude.js'
-import { GUIDES, HOTLINES, TOPICS, bkk, findPlace, guideText, nationalSummary, nearbySummary, placeAt, provinceName, provinceSummary } from './context.js'
+import { provinceContacts } from '../contacts.js'
+import { GUIDES, HOTLINES, TOPICS, bkk, findPlace, guideText, km, nationalSummary, nearbySummary, placeAt, provinceName, provinceSummary } from './context.js'
 
 export const PAGES = ['home', 'map', 'alerts', 'provinces', 'guide', 'volunteer', 'simulator', 'province', 'province_map', 'weather', 'report', 'updates', 'help', 'missing', 'lost_found', 'cctv', 'area']
 export const MAP_MODES = ['water', 'rain', 'air', 'fire', 'quake']
@@ -82,6 +83,19 @@ const TOOLS = [
     name: 'nearby',
     description: "The area around the person's shared location: the place name, nearest river gauges, rain, public reports within 3 km, the nearest open shelter, fire hotspots and satellite flooding nearby. Only when they have shared their location.",
     input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'emergency_contacts',
+    description:
+      "Who to call in a province: national lines that route to the local office, the province's coordination centre hotline, numbers its staff added, and the nearest hospitals, police and fire stations from OpenStreetMap (with phone numbers where mapped, and how far they are from the person's shared location or the province centre).",
+    input_schema: {
+      type: 'object',
+      properties: {
+        province: { type: 'string', description: 'Province code' },
+        kind: { type: 'string', enum: ['hospital', 'police', 'fire', 'all'], description: 'Which places to list; default all' },
+      },
+      required: ['province'],
+    },
   },
   {
     name: 'national_overview',
@@ -185,7 +199,8 @@ function cleanButtons(list, ctx) {
     if (b.action === 'call') {
       const n = digits(b.number)
       const centerLines = [ctx.province, ...ctx.provincesSeen].filter(Boolean).map((c) => digits(centerOf(c).hotline)).filter(Boolean)
-      if (HOTLINES.includes(n) || centerLines.includes(n)) out.push({ label, action: 'call', number: n })
+      // National hotlines, a coordination centre, or a number a tool returned (OSM places, staff-added numbers).
+      if (HOTLINES.includes(n) || centerLines.includes(n) || ctx.extraNumbers.has(n)) out.push({ label, action: 'call', number: n })
     } else if (b.action === 'page' && PAGES.includes(b.page)) {
       const province = b.province && provinceName(b.province) ? b.province : null
       const needsProvince = !['home', 'map', 'alerts', 'provinces', 'guide', 'volunteer', 'simulator'].includes(b.page)
@@ -248,6 +263,27 @@ async function runTool(name, input, ctx, emit) {
       if (!ctx.location) return { error: 'The person has not shared their location. Ask where they are, or suggest the "use my location" button above the message box.' }
       emit({ type: 'status', tool: name })
       return nearbySummary(ctx.location[0], ctx.location[1])
+    }
+    case 'emergency_contacts': {
+      if (!provinceName(input.province)) return { error: 'Unknown province code. Use find_place first.' }
+      ctx.provincesSeen.add(input.province)
+      emit({ type: 'status', tool: name })
+      const c = await provinceContacts(input.province, { waitMs: 15_000 })
+      const from = ctx.location && ctx.locationProvince === input.province ? ctx.location : provinceName(input.province).center
+      const places = (c.places ?? [])
+        .filter((p) => !input.kind || input.kind === 'all' || p.kind === input.kind)
+        .map((p) => ({ kind: p.kind, name: p.th ?? p.en, name_en: p.en, phone: p.phone, emergency_room: p.emergency || undefined, km: Math.round(km(from, [p.lng, p.lat]) * 10) / 10 }))
+        .sort((a, b) => a.km - b.km)
+      for (const p of places) if (p.phone) ctx.extraNumbers.add(p.phone.replace(/[^\d+]/g, ''))
+      for (const l of c.local) ctx.extraNumbers.add(l.phone.replace(/[^\d+]/g, ''))
+      return {
+        national: c.national.map((n) => `${n.number} ${n.kind}`),
+        coordination_centre: c.centre,
+        added_by_province_staff: c.local.map((l) => ({ name: l.name, phone: l.phone, kind: l.kind, note: l.note })),
+        nearest_places: places.slice(0, 10),
+        distances_from: ctx.location && ctx.locationProvince === input.province ? 'their shared location' : 'the province centre',
+        note: c.places ? 'Places and their numbers come from OpenStreetMap: say they may be incomplete. Many have no number mapped.' : 'OpenStreetMap places are not loaded yet; give the national lines.',
+      }
     }
     case 'national_overview':
       emit({ type: 'status', tool: name })
@@ -346,6 +382,7 @@ export async function runAssistant({ turns, lang, province, location, page }, em
     locationProvince: location ? placeAt(location[0], location[1])?.province ?? null : null,
     provincesSeen: new Set(),
     guides: new Set(),
+    extraNumbers: new Set(),
     hasImage: !!turns[turns.length - 1]?.image,
   }
   if (ctx.locationProvince) ctx.provincesSeen.add(ctx.locationProvince)

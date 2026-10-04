@@ -10,30 +10,31 @@ const MAP_MODES = ['water', 'rain', 'air', 'fire', 'quake']
  * fallback config, and every screen gets a link you can share.
  *
  *   #/                              Thailand overview
- *   #/map  #/map/<mode>             national 3D map, optionally opened on water | rain | air | fire | quake
+ *   #/map  #/map/<mode>             national 3D map, optionally opened on water | rain | air | fire | quake;
+ *                                   ?p=<slug> opens that province's panel
  *   #/alerts                        alerts by our warning rules, and alert notifications
  *   #/provinces                     choose a province
  *   #/p/<slug>                      a province: water now, forecast, what to do
- *   #/p/<slug>/<section>            map | weather | area | report | updates | lost-found | missing | help | open | cctv
+ *   #/p/<slug>/<section>            map | weather | area | report | updates | lost-found | missing | help | open | cctv | contacts
  *   #/help/<code>                   progress on a help request
- *   #/flood                         flood simulator 3D (Chiang Mai)
+ *   #/flood  #/flood/<slug>         flood simulator 3D, for any province
  *   #/guide  #/guide/<topic>        safety guides (src/data/guides.json)
  *   #/volunteer  #/need/<id>  #/tasks  #/post     volunteering (Jaidee)
  *   #/command                       command centre (staff)
  *   #/track/<token>                 a rescue team's phone sharing its location
  *   #/sources  #/about
  */
-export const SECTIONS = ['map', 'weather', 'area', 'report', 'updates', 'lost-found', 'missing', 'help', 'open', 'cctv'] as const
+export const SECTIONS = ['map', 'weather', 'area', 'report', 'updates', 'lost-found', 'missing', 'help', 'open', 'cctv', 'contacts'] as const
 export type Section = (typeof SECTIONS)[number]
 
 export type Route =
   | { name: 'home' }
-  | { name: 'map'; mode?: MapMode }
+  | { name: 'map'; mode?: MapMode; province?: Province }
   | { name: 'alerts' }
   | { name: 'provinces' }
   | { name: 'province'; province: Province; section: Section | null }
   | { name: 'helpStatus'; code: string }
-  | { name: 'flood' }
+  | { name: 'flood'; province?: Province }
   | { name: 'guide'; topic: string | null }
   | { name: 'volunteer' }
   | { name: 'need'; id: string }
@@ -51,11 +52,15 @@ const bySlug = new Map(PROVINCES.map((p) => [p.slug, p]))
 export const provinceByCode = new Map(PROVINCES.map((p) => [p.code, p]))
 
 export function parseHash(hash: string): Route {
-  const parts = hash.replace(/^#/, '').split('?')[0].split('/').filter(Boolean).map(decodeURIComponent)
+  const [path, query = ''] = hash.replace(/^#/, '').split('?')
+  const params = new URLSearchParams(query)
+  const parts = path.split('/').filter(Boolean).map(decodeURIComponent)
   const [a, b, c] = parts
   switch (a) {
-    case 'map':
-      return MAP_MODES.includes(b) ? { name: 'map', mode: b as MapMode } : { name: 'map' }
+    case 'map': {
+      const province = bySlug.get(params.get('p') ?? '')
+      return { name: 'map', ...(MAP_MODES.includes(b) ? { mode: b as MapMode } : {}), ...(province ? { province } : {}) }
+    }
     case 'alerts':
       return { name: 'alerts' }
     case 'provinces':
@@ -67,8 +72,10 @@ export function parseHash(hash: string): Route {
     }
     case 'help':
       return b ? { name: 'helpStatus', code: b.toUpperCase() } : { name: 'home' }
-    case 'flood':
-      return { name: 'flood' }
+    case 'flood': {
+      const province = b ? bySlug.get(b) : undefined
+      return province ? { name: 'flood', province } : { name: 'flood' }
+    }
     case 'guide':
       return { name: 'guide', topic: b ?? null }
     case 'volunteer':
@@ -98,9 +105,11 @@ export function href(route: Route): string {
     case 'home':
       return '#/'
     case 'map':
-      return route.mode ? `#/map/${route.mode}` : '#/map'
+      return `#/map${route.mode ? `/${route.mode}` : ''}${route.province ? `?p=${route.province.slug}` : ''}`
     case 'guide':
       return route.topic ? `#/guide/${route.topic}` : '#/guide'
+    case 'flood':
+      return route.province ? `#/flood/${route.province.slug}` : '#/flood'
     case 'province':
       return `#/p/${route.province.slug}${route.section ? `/${route.section}` : ''}`
     case 'helpStatus':

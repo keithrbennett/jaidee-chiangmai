@@ -117,3 +117,15 @@ export function useGeolocation() {
     })
   return { state, locate }
 }
+
+/** "+6653936150" → "053 936 150", "0812345678" → "081 234 5678": how Thai numbers are written. */
+export function formatPhone(raw: string) {
+  const digits = raw.replace(/[^\d+]/g, '').replace(/^\+66/, '0')
+  if (/^0\d{8}$/.test(digits)) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
+  if (/^0\d{9}$/.test(digits)) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
+  return raw.trim()
+}
+/** A tel: link for a number as people write it. */
+export const telHref = (raw: string) => `tel:${raw.replace(/[^\d+]/g, '')}`
+/** Directions to a point in the person's maps app. */
+export const directionsHref = (lat: number, lng: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`

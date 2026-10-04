@@ -224,6 +224,29 @@ export interface NeedCard {
   verifiedAt: number
 }
 
+/** A hospital, police station, fire station or DDPM office from OpenStreetMap. */
+export interface ContactPlace {
+  kind: 'hospital' | 'police' | 'fire' | 'ddpm'
+  th: string | null
+  en: string | null
+  phone: string | null
+  lng: number
+  lat: number
+  emergency: boolean
+}
+
+/** Who to call in a province (GET /api/contacts/:code, server/contacts.js). */
+export interface Contacts {
+  /** National lines that route to the local office. */
+  national: { number: string; kind: string }[]
+  centre: { name: string | null; hotline: string } | null
+  /** Numbers the province's staff added. */
+  local: { id: string; name: string; phone: string; kind: string; note: string | null }[]
+  /** null while the server is still fetching them. */
+  places: ContactPlace[] | null
+  placesAt: number | null
+}
+
 export class ApiError extends Error {
   status: number
   field?: string

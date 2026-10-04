@@ -86,6 +86,7 @@ interface Overview {
   needs: { id: string; created_at: number; text: string; contact: string; lat: number | null; lng: number | null }[]
   reports: { id: string; created_at: number; level: number; note: string | null; hidden: number; photo: string | null }[]
   lostHeld: { id: string; created_at: number; kind: string; title: string; description: string | null; contact: string; photo: string | null }[]
+  contacts: { id: string; name: string; phone: string; kind: string; note: string | null }[]
   checks: Checks
 }
 type Tab = 'help' | 'teams' | 'missing' | 'shelters' | 'needs' | 'reports' | 'settings' | 'admin' | 'account'
@@ -742,6 +743,7 @@ function SettingsTab({ data, reload }: { data: Overview; reload: () => void }) {
     reload()
   }
   return (
+    <>
     <Card>
       <Field label={C.name}>
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
@@ -762,6 +764,76 @@ function SettingsTab({ data, reload }: { data: Overview; reload: () => void }) {
         )}
       </div>
       {saved && <p className="text-[#248a3d]">{C.saved}</p>}
+    </Card>
+    <ContactsEditor data={data} reload={reload} />
+    </>
+  )
+}
+
+const CONTACT_KINDS = ['ddpm', 'hospital', 'police', 'fire', 'rescue', 'local', 'other']
+
+/** Numbers this province publishes on its "emergency numbers" page, next to the national lines. */
+function ContactsEditor({ data, reload }: { data: Overview; reload: () => void }) {
+  const { m } = useI18n()
+  const K = m.contacts
+  const E = m.command.contacts
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [kind, setKind] = useState('ddpm')
+  const [note, setNote] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  return (
+    <Card>
+      <h2 className="text-lg font-bold">{E.title}</h2>
+      <p className="text-[15px] text-muted">{E.intro}</p>
+      {data.contacts.length > 0 && (
+        <ul className="flex flex-col divide-y divide-line/60 rounded-[12px] bg-paper">
+          {data.contacts.map((c) => (
+            <li key={c.id} className="flex items-center gap-3 px-3 py-2">
+              <span className="min-w-0 flex-1">
+                <b>{c.name}</b> <span className="text-muted">· {K.localKinds[c.kind] ?? c.kind}</span>
+                {c.note && <span className="block text-sm text-muted">{c.note}</span>}
+              </span>
+              <span className="tabular-nums">{c.phone}</span>
+              <button onClick={() => api(`/staff/contacts/${c.id}`, { method: 'DELETE' }).then(reload)} className="rounded-full bg-card px-3 py-1 text-sm font-semibold text-urgent">
+                {E.remove}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input className={inputCls} placeholder={E.name} value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
+        <input className={inputCls} placeholder={E.phone} value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={40} inputMode="tel" />
+        <select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)} aria-label={E.kind}>
+          {CONTACT_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {K.localKinds[k]}
+            </option>
+          ))}
+        </select>
+        <input className={inputCls} placeholder={E.note} value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
+      </div>
+      {error && <p className="font-semibold text-urgent">{error}</p>}
+      <div>
+        <Button
+          disabled={!name.trim() || !phone.trim()}
+          onClick={async () => {
+            setError(null)
+            try {
+              await api('/staff/contacts', { body: { province: data.province, name, phone, kind, note: note || null } })
+              setName('')
+              setPhone('')
+              setNote('')
+              reload()
+            } catch (err) {
+              setError(errorText(err, m))
+            }
+          }}
+        >
+          {E.add}
+        </Button>
+      </div>
     </Card>
   )
 }

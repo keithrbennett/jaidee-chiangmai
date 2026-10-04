@@ -4,6 +4,7 @@ import { api } from '../../lib/api'
 import { clearDraft, readDraft } from '../../lib/assistant'
 import { href } from '../../lib/router'
 import { LEVELS, LEVEL_COLOR } from '../../lib/water'
+import { EmergencyContacts } from '../contacts/EmergencyContacts'
 import { Icon } from '../Icon'
 import { Button } from '../ui'
 import { Choices, EmergencyNumbers, Field, Loading, LocationPicker, inputCls } from '../kit'
@@ -21,7 +22,9 @@ export function Help({ province, data, dataError }: ProvinceProps) {
   const { m, lang } = useI18n()
   // A request น้องใจดี drafted in the chat (src/lib/assistant.ts), if one is waiting for this province.
   const [draft] = useState(() => readDraft(province.code))
-  useEffect(() => clearDraft(), [])
+  useEffect(() => {
+    clearDraft()
+  }, [])
   const [where, setWhere] = useState<[number, number] | null>(draft?.location ?? null)
   const [people, setPeople] = useState(String(draft?.people ?? 1))
   const [vulnerable, setVulnerable] = useState<string[]>(draft?.vulnerable ?? [])
@@ -44,7 +47,7 @@ export function Help({ province, data, dataError }: ProvinceProps) {
       ) : !data.commandCenter.active ? (
         <>
           <p className="rounded-[16px] bg-card p-5 text-lg font-semibold">{m.help.closed}</p>
-          <EmergencyNumbers social rid />
+          <EmergencyContacts province={province} />
         </>
       ) : code ? (
         <section className="flex flex-col gap-3 rounded-[22px] bg-card p-6">

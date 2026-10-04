@@ -5,11 +5,21 @@ import https from 'node:https'
 import { all, get } from '../db.js'
 import { feeds, isProvince } from '../feeds.js'
 import { hazards } from '../hazards.js'
+import { provinceContacts } from '../contacts.js'
 import { alerts } from '../push.js'
 import { PROVINCES } from '../lib/geo.js'
 import { route, sendJson } from '../lib/util.js'
 
 export const data = express.Router()
+
+/** Who to call in a province (server/contacts.js). The OSM part can take a while the first time. */
+data.get(
+  '/contacts/:code',
+  route(async (req, res) => {
+    if (!isProvince(req.params.code)) return res.status(404).json({ error: 'no_such_province' })
+    sendJson(req, res, await provinceContacts(req.params.code), { maxAge: 300 })
+  }),
+)
 
 const inProvince = (code) => (x) => x.province === code
 const PROVINCE_CENTER = new Map(PROVINCES.map((p) => [p.code, p.center]))

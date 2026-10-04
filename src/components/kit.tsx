@@ -116,6 +116,13 @@ export function StationRow({ s, distance }: { s: Station; distance?: number }) {
           )}
           {s.pct !== null && <span className="text-[15px] text-muted">{m.status.ofBank(Math.round(s.pct))}</span>}
         </div>
+        {s.pct !== null && (
+          // Level against the bank: the bar fills to 100% at the bank (the tick) and runs on past it when over.
+          <div className="relative mt-2 h-1.5 max-w-sm rounded-full bg-paper" aria-hidden="true">
+            <span className="block h-full rounded-full transition-[width] duration-700" style={{ width: `${Math.min(100, (s.pct / 120) * 100)}%`, background: STATUS_COLOR[status] }} />
+            <span className="absolute -top-0.5 h-2.5 w-0.5 rounded-full bg-ink/45" style={{ left: `${(100 / 120) * 100}%` }} />
+          </div>
+        )}
         <p className="mt-1 text-sm text-faint">
           {s.code} · {m.common.measured(clock(s.observedAt, locale))} · {m.status.agency[s.agency] ?? s.agency}
           {distance !== undefined && ` · ${m.common.km(distance.toFixed(1))}`}

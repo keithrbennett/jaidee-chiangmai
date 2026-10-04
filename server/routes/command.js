@@ -81,6 +81,7 @@ command.get(
         needs,
         reports,
         lostHeld,
+        contacts: all('SELECT * FROM contacts WHERE province = ? ORDER BY kind, name', p),
         checks: { help: checkMap('help', help), missing: checkMap('missing', missing), need: checkMap('need', needs), report: checkMap('report', reports), lost: checkMap('lost', lostHeld) },
       },
       { maxAge: 0 },
@@ -348,6 +349,43 @@ command.patch(
     const row = owned(req, 'reports', req.params.id)
     if (!row) return res.status(404).json({ error: 'not_found' })
     run('UPDATE reports SET hidden = ? WHERE id = ?', req.body?.hidden ? 1 : 0, row.id)
+    res.json({ ok: true })
+  }),
+)
+
+// ---- Phone numbers for the public ------------------------------------------------------------------------------
+
+const CONTACT_KINDS = ['ddpm', 'hospital', 'police', 'fire', 'rescue', 'local', 'other']
+
+command.post(
+  '/staff/contacts',
+  requireStaff,
+  staffRoute(async (req, res) => {
+    const b = req.body ?? {}
+    const p = provinceFor(req, b.province)
+    const id = randomUUID()
+    run(
+      'INSERT INTO contacts (id, province, name, phone, kind, note, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      id,
+      p,
+      str(b.name, 'name', { max: 120, required: true }),
+      str(b.phone, 'phone', { max: 40, required: true }),
+      oneOf(b.kind, 'kind', CONTACT_KINDS, { required: true }),
+      str(b.note, 'note', { max: 200 }),
+      Date.now(),
+      req.staff.id,
+    )
+    res.status(201).json(get('SELECT * FROM contacts WHERE id = ?', id))
+  }),
+)
+
+command.delete(
+  '/staff/contacts/:id',
+  requireStaff,
+  staffRoute(async (req, res) => {
+    const row = owned(req, 'contacts', req.params.id)
+    if (!row) return res.status(404).json({ error: 'not_found' })
+    run('DELETE FROM contacts WHERE id = ?', row.id)
     res.json({ ok: true })
   }),
 )

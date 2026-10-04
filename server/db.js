@@ -214,6 +214,20 @@ CREATE TABLE IF NOT EXISTS ai_checks (
   PRIMARY KEY (kind, ref_id)
 );
 
+-- Phone numbers a province's staff add for the public: the provincial DDPM office, hospitals, rescue
+-- foundations, the municipality. Shown on the province page with the national lines and OSM places.
+CREATE TABLE IF NOT EXISTS contacts (
+  id TEXT PRIMARY KEY,
+  province TEXT NOT NULL,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  kind TEXT NOT NULL,              -- ddpm | hospital | police | fire | rescue | local | other
+  note TEXT,
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT
+);
+CREATE INDEX IF NOT EXISTS contacts_province ON contacts (province);
+
 -- Volunteer needs (Jaidee). Posted by anyone, shown once a staff member has checked them.
 CREATE TABLE IF NOT EXISTS needs (
   id TEXT PRIMARY KEY,

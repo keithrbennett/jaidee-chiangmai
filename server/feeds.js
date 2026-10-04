@@ -26,9 +26,11 @@ function station(s) {
     lng: s.lng,
     agency: s.agency,
     levelMsl: s.levelMsl,
-    bankMsl: s.bankMsl,
-    over: s.over,
-    pct: s.pct,
+    // A few gauges publish their bank on another datum (a dam's, say) and come out "279 m over the bank".
+    // No river does that: drop the comparison rather than raise a false alarm.
+    bankMsl: sane(s) ? s.bankMsl : null,
+    over: sane(s) ? s.over : null,
+    pct: sane(s) && (s.pct === null || s.pct <= 400) ? s.pct : null,
     trend: s.trend ?? null,
     flow: s.flow ?? null,
     gauge: s.gauge ?? null,
@@ -36,6 +38,8 @@ function station(s) {
     source: s.source,
   }
 }
+
+const sane = (s) => s.over === null || (s.over <= 12 && s.over >= -60)
 
 async function loadSwoc() {
   const body = await fetchJson('https://bigdata-swoc.rid.go.th/api/ma/pier/all/get_pier_data?date=&basin=&province=&region=&rid=')

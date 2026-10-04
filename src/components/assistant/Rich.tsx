@@ -4,7 +4,7 @@ import { Fragment, type ReactNode } from 'react'
  * The little markdown น้องใจดี writes: paragraphs, "- " bullets, "1. " lists, **bold**, [links](https://…),
  * bare https links, and hotline numbers turned into tap-to-call. Built as React nodes, never as HTML.
  */
-const HOTLINES = '1784|1669|191|199|1300|1460|1182|1860|1362|1129|1130|1323|1422|1155'
+const HOTLINES = '1784|1669|191|199|1300|1460|1182|1860|1362|1129|1130|1323|1422|1155|1567|1193'
 const INLINE = new RegExp(`(\\*\\*[^*]+\\*\\*|\\[[^\\]]+\\]\\(https?:\\/\\/[^)\\s]+\\)|https?:\\/\\/[^\\s)]+|\\b(?:${HOTLINES})\\b)`, 'g')
 
 function inline(text: string, key = ''): ReactNode[] {

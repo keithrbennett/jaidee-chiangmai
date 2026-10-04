@@ -16,6 +16,7 @@ import { ProvinceMap } from './ProvinceMap'
 import { ReportForm } from './ReportForm'
 import { Updates } from './Updates'
 import { Weather } from './Weather'
+import { EmergencyContacts } from '../contacts/EmergencyContacts'
 
 export interface ProvinceProps {
   province: Province
@@ -55,6 +56,8 @@ function sectionFor(section: Section | null, props: ProvinceProps) {
       return <OpenCenter {...props} />
     case 'cctv':
       return <Cctv {...props} />
+    case 'contacts':
+      return <ContactsPage {...props} />
     default:
       return <Hub {...props} />
   }
@@ -62,12 +65,13 @@ function sectionFor(section: Section | null, props: ProvinceProps) {
 
 const Ctx = createContext<(ProvinceProps & { section: Section | null }) | null>(null)
 
-type TabId = 'overview' | 'map' | 'weather' | 'community' | 'help'
+type TabId = 'overview' | 'map' | 'weather' | 'community' | 'contacts' | 'help'
 const TABS: { id: TabId; section: Section | null; also: Section[] }[] = [
   { id: 'overview', section: null, also: [] },
   { id: 'map', section: 'map', also: ['area', 'cctv'] },
   { id: 'weather', section: 'weather', also: [] },
   { id: 'community', section: 'updates', also: ['report', 'lost-found'] },
+  { id: 'contacts', section: 'contacts', also: [] },
   { id: 'help', section: 'help', also: ['missing', 'open'] },
 ]
 
@@ -123,5 +127,15 @@ export function SectionPage({ province, title, wide = false, children }: { provi
       <h2 className="text-[26px] font-bold leading-tight">{title}</h2>
       {children}
     </div>
+  )
+}
+
+/** #/p/<slug>/contacts: who to call in this province. */
+function ContactsPage({ province }: ProvinceProps) {
+  const { m, lang } = useI18n()
+  return (
+    <SectionPage province={province} title={m.contacts.titleIn(provinceName(province, lang))}>
+      <EmergencyContacts province={province} />
+    </SectionPage>
   )
 }

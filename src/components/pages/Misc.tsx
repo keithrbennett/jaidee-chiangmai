@@ -1,21 +1,97 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MapMode } from '../../lib/map/modes'
+import { PROVINCES, type Province } from '../../data/provinces'
+import { ProvinceSheet } from '../province/ProvinceSheet'
 import { useI18n } from '../../i18n'
 import { api, useApi } from '../../lib/api'
-import { href, navigate } from '../../lib/router'
+import { href, navigate, provinceByCode } from '../../lib/router'
 import { clock } from '../../lib/time'
 import { Icon } from '../Icon'
 import { EmergencyNumbers, SectionTitle, inputCls } from '../kit'
-import { useLocale } from '../../lib/ui'
+import { provinceName, useLocale } from '../../lib/ui'
 import { ExternalLinks } from '../province/Hub'
 import { Button } from '../ui'
 import { NationalMap } from './NationalMap'
 
 /** Full-screen national map. */
-export function MapPage({ mode }: { mode?: MapMode }) {
+export function MapPage({ mode, province }: { mode?: MapMode; province?: Province }) {
+  const [selected, setSelected] = useState<Province | null>(province ?? null)
   return (
-    <div className="h-[calc(100dvh-7.5rem)] md:h-[calc(100dvh-6.5rem)]">
-      <NationalMap key={mode ?? 'water'} full initialMode={mode} />
+    <div className="relative h-[calc(100dvh-7.5rem)] md:h-[calc(100dvh-6.5rem)]">
+      <NationalMap
+        key={mode ?? 'water'}
+        full
+        initialMode={mode}
+        onProvince={(code) => setSelected(provinceByCode.get(code) ?? null)}
+        selected={selected?.code ?? null}
+      />
+      <MapSearch onPick={setSelected} />
+      {selected && <ProvinceSheet province={selected} onClose={() => setSelected(null)} />}
+    </div>
+  )
+}
+
+/** A search button over the map that opens into a province search, like Maps. */
+function MapSearch({ onPick }: { onPick: (p: Province) => void }) {
+  const { m, lang } = useI18n()
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const matches = q.trim()
+    ? PROVINCES.filter((p) => p.th.includes(q.trim()) || p.en.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 6)
+    : []
+  if (!open)
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        aria-label={m.provinceSheet.search}
+        className="press glass absolute left-3 top-3 z-10 flex h-11 items-center gap-2 rounded-full px-3.5 text-[15px] font-semibold shadow-lg ring-1 ring-black/5"
+      >
+        <Icon name="search" size={19} />
+        <span className="hidden lg:inline">{m.provinceSheet.search}</span>
+      </button>
+    )
+  return (
+    <div className="pop-in absolute left-3 top-3 z-30 w-[min(320px,calc(100%-1.5rem))]">
+      <div className="glass flex items-center gap-2 rounded-[18px] px-3 shadow-lg ring-1 ring-black/5">
+        <Icon name="search" size={19} className="text-muted" />
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setOpen(false)
+            if (e.key === 'Enter' && matches[0]) {
+              onPick(matches[0])
+              setOpen(false)
+              setQ('')
+            }
+          }}
+          placeholder={m.provinceSheet.search}
+          className="min-h-11 flex-1 bg-transparent text-[16px] outline-none"
+        />
+        <button onClick={() => setOpen(false)} aria-label={m.assistant.close} className="text-muted">
+          <Icon name="close" size={17} />
+        </button>
+      </div>
+      {matches.length > 0 && (
+        <ul className="glass mt-1.5 overflow-hidden rounded-[16px] shadow-lg ring-1 ring-black/5">
+          {matches.map((p) => (
+            <li key={p.code}>
+              <button
+                onClick={() => {
+                  onPick(p)
+                  setOpen(false)
+                  setQ('')
+                }}
+                className="flex min-h-11 w-full items-center gap-2 px-4 text-left hover:bg-paper/70"
+              >
+                <b>{provinceName(p, lang)}</b>
+                <span className="text-muted">{lang === 'th' ? p.en : p.th}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

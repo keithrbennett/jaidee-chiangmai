@@ -59,7 +59,7 @@ export default function App() {
       <main className={`flex flex-1 flex-col ${fullHeight ? 'min-h-0' : ''}`}>
         {route.name === 'home' && <Home alerts={alerts.data} />}
         {route.name === 'alerts' && <AlertsPage alerts={alerts.data} />}
-        {route.name === 'map' && <MapPage mode={route.mode} />}
+        {route.name === 'map' && <MapPage key={`${route.mode ?? ''}-${route.province?.code ?? ''}`} mode={route.mode} province={route.province} />}
         {route.name === 'provinces' && <Provinces />}
         {route.name === 'province' && <ProvincePage key={route.province.code} province={route.province} section={route.section} />}
         {route.name === 'helpStatus' && <HelpStatus code={route.code} />}

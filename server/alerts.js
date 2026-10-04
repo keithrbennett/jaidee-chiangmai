@@ -12,8 +12,8 @@ const km = (a, b) => {
 }
 
 /** Andaman coast and Gulf of Thailand coast, for tsunami alerts. */
-const ANDAMAN = ['85', '82', '83', '81', '92', '91']
-const GULF = ['23', '22', '21', '20', '24', '11', '10', '74', '75', '76', '77', '86', '84', '80', '93', '90', '94', '96']
+export const ANDAMAN = ['85', '82', '83', '81', '92', '91']
+export const GULF = ['23', '22', '21', '20', '24', '11', '10', '74', '75', '76', '77', '86', '84', '80', '93', '90', '94', '96']
 
 /** How far a quake of magnitude M may be felt, roughly (km): our threshold for telling a province. */
 const feltRadius = (m) => (m < 4.5 ? 100 : m < 5.5 ? 300 : m < 6.5 ? 600 : 1000)

@@ -24,7 +24,19 @@ const byCode = new Map(PROVINCES.map((p) => [p.code, p]))
  * Thailand by hazard: pick water, rain, dust, fire or earthquake and the map shows just that, with its own
  * legend and province shading. Tap a dot for details, or a shaded province to open it.
  */
-export function NationalMap({ full = false, initialMode = 'water' }: { full?: boolean; initialMode?: MapMode }) {
+export function NationalMap({
+  full = false,
+  initialMode = 'water',
+  onProvince,
+  selected = null,
+}: {
+  full?: boolean
+  initialMode?: MapMode
+  /** Tapping a province calls this (to open its panel) instead of going to its page. */
+  onProvince?: (code: string) => void
+  /** The province whose panel is open: outlined, and the map makes room for the panel. */
+  selected?: string | null
+}) {
   const { m, lang } = useI18n()
   const locale = useLocale()
   const [mode, setMode] = useState<MapMode>(initialMode)
@@ -38,6 +50,10 @@ export function NationalMap({ full = false, initialMode = 'water' }: { full?: bo
   const shapes = useGeo(loadProvinceShapes)
   const radar = useRadar()
   const mapRef = useRef<MlMap | null>(null)
+  const selectedRef = useRef(selected)
+  useEffect(() => {
+    selectedRef.current = selected
+  })
 
   // Province shading for the mode: what needs attention, nothing else.
   const shading = useMemo(() => {
@@ -67,7 +83,11 @@ export function NationalMap({ full = false, initialMode = 'water' }: { full?: bo
   const draw = useCallback(
     (map: MlMap) => {
       if (!map.getSource('osm')) return
-      if (shapes) showAreas(map, 'jd-prov', shapes, shading, 'code', 'rgba(120,110,160,0.3)')
+      if (shapes) {
+        showAreas(map, 'jd-prov', shapes, shading, 'code', 'rgba(120,110,160,0.3)')
+        if (!map.getLayer('jd-prov-selected'))
+          map.addLayer({ id: 'jd-prov-selected', type: 'line', source: 'jd-prov', filter: ['==', ['get', 'code'], selectedRef.current ?? ''], paint: { 'line-color': '#0a84ff', 'line-width': 3.5 } })
+      }
       if (national.data) {
         showStations(map, national.data.stations, (s) =>
           s.over === null ? '' : s.over > 0 ? `+${s.over.toFixed(2)} ${m.common.m}` : `${s.over.toFixed(2)} ${m.common.m}`,
@@ -105,10 +125,25 @@ export function NationalMap({ full = false, initialMode = 'water' }: { full?: bo
   }, [mode, full])
 
   // Latest data for the click handler, which outlives a render.
-  const dataRef = useRef<PopupData>({ national: national.data, hazards: hazards.data, air: air.data, reports: reports.data, shelters: shelters.data, cameras: cameras.data, m, lang, locale })
+  const dataRef = useRef<PopupData>({ national: national.data, hazards: hazards.data, air: air.data, reports: reports.data, shelters: shelters.data, cameras: cameras.data, m, lang, locale, onProvince })
   useEffect(() => {
-    dataRef.current = { national: national.data, hazards: hazards.data, air: air.data, reports: reports.data, shelters: shelters.data, cameras: cameras.data, m, lang, locale }
+    dataRef.current = { national: national.data, hazards: hazards.data, air: air.data, reports: reports.data, shelters: shelters.data, cameras: cameras.data, m, lang, locale, onProvince }
   })
+
+  // The open province: outlined in blue, and on wide screens the camera moves it clear of the panel.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const line = map.getLayer('jd-prov-selected')
+    if (line) map.setFilter('jd-prov-selected', ['==', ['get', 'code'], selected ?? ''])
+    const p = selected ? byCode.get(selected) : null
+    if (p && window.innerWidth >= 768) {
+      const [w, s, e, n] = p.bbox as number[]
+      // The panel is 500 px wide on the right; on mid-size screens leave at least half the map for the province.
+      const right = full ? Math.min(540, Math.round(window.innerWidth * 0.5)) : 40
+      map.fitBounds([w, s, e, n], { padding: { top: 70, bottom: 40, left: 40, right }, pitch: 40, duration: 900, maxZoom: 9.5 })
+    }
+  }, [selected, full])
 
   const onMap = useCallback((map: MlMap) => {
     mapRef.current = map
@@ -130,6 +165,7 @@ export function NationalMap({ full = false, initialMode = 'water' }: { full?: bo
 }
 
 interface PopupData {
+  onProvince?: (code: string) => void
   national: National | null
   hazards: Hazards | null
   air: AirStation[] | null
@@ -235,7 +271,8 @@ function popupFor(map: MlMap, d: PopupData, layer: string, p: Record<string, unk
     })
   } else if (layer === 'jd-prov-fill') {
     const prov = byCode.get(String(p.code))
-    if (prov) window.location.hash = provinceHref(prov).slice(1)
+    if (prov && d.onProvince) d.onProvince(prov.code)
+    else if (prov) window.location.hash = provinceHref(prov).slice(1)
   }
 }
 
