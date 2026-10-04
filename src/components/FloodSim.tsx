@@ -14,13 +14,14 @@ import {
   setFeeds,
   setNeeds,
   setWalkWater,
-  styleUrl,
 } from '../lib/flood/floodMap'
 import { FLOODED_DEPTH } from '../lib/flood/solver'
+import { mapStyle, type MapLang } from '../lib/map/style'
 import type { Frame, FromWorker, Scenario, ToWorker } from '../lib/flood/sim.worker'
 import type { Grid } from '../lib/flood/grid'
 import { href } from '../lib/router'
-import type { Need } from '../types'
+import { useApi, type NeedCard } from '../lib/api'
+import { useResolvedTheme } from '../lib/theme'
 import { Icon } from './Icon'
 import { Button, Card, Pill, ScreenTitle } from './ui'
 
@@ -36,10 +37,11 @@ type GridMeta = Omit<Grid, 'z' | 'river'>
 type NeedPoint = { id: string; lat: number; lng: number; title: string; atRisk: boolean; depth: number }
 
 /** The flood simulator page. Loaded on demand, so MapLibre only downloads when someone opens it. */
-export default function FloodSim({ needs }: { needs: Need[] }) {
+export default function FloodSim() {
   const { m, lang } = useI18n()
   const f = m.flood
   const theme = useResolvedTheme()
+  const needsApi = useApi<NeedCard[]>('/needs')
   const { feeds, failed } = useFloodFeeds()
 
   const mapEl = useRef<HTMLDivElement>(null)
@@ -99,7 +101,7 @@ export default function FloodSim({ needs }: { needs: Need[] }) {
 
   // Map: created once; layers come back after every style switch (light / dark).
   useEffect(() => {
-    const map = createFloodMap(mapEl.current!, latest.current.theme)
+    const map = createFloodMap(mapEl.current!, latest.current.theme, latest.current.lang as MapLang)
     mapRef.current = map
     map.on('click', (e) => {
       const hit = map.queryRenderedFeatures(e.point, { layers: ['needs', 'gauges', 'rain'].filter((l) => map.getLayer(l)) })[0]
@@ -120,7 +122,7 @@ export default function FloodSim({ needs }: { needs: Need[] }) {
   // Whether our layers are on the current style. (Not map.isStyleLoaded(): that stays false while any tile
   // is still loading, so updates gated on it get dropped on a slow connection.)
   const layersReady = useRef(false)
-  const styleTheme = useRef(theme)
+  const styleKey = useRef(`${theme}|${lang}`)
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -131,15 +133,15 @@ export default function FloodSim({ needs }: { needs: Need[] }) {
       layersReady.current = true
     }
     map.on('style.load', onStyle)
-    if (styleTheme.current !== theme) {
-      styleTheme.current = theme
+    if (styleKey.current !== `${theme}|${lang}`) {
+      styleKey.current = `${theme}|${lang}`
       layersReady.current = false
-      map.setStyle(styleUrl(theme), { diff: false })
+      map.setStyle(mapStyle(theme, lang as MapLang), { diff: false })
     }
     return () => {
       map.off('style.load', onStyle)
     }
-  }, [theme, canvas])
+  }, [theme, lang, canvas])
 
   useEffect(() => {
     const map = mapRef.current
@@ -161,18 +163,18 @@ export default function FloodSim({ needs }: { needs: Need[] }) {
   // Jaidee needs on the map, red where the model puts water around them.
   const needPoints = useMemo<NeedPoint[]>(
     () =>
-      needs.map((n) => {
+      (needsApi.data ?? []).map((n) => {
         const s = sampleAt(grid?.meta ?? null, grid?.z ?? null, frame?.depth ?? null, n.lng, n.lat)
         return {
           id: n.id,
           lat: n.lat,
           lng: n.lng,
-          title: lang === 'th' ? n.title.th : n.title.en,
+          title: n.title,
           atRisk: !!s && s.depth >= FLOODED_DEPTH,
           depth: s?.depth ?? 0,
         }
       }),
-    [needs, grid, frame, lang],
+    [needsApi.data, grid, frame],
   )
   useEffect(() => {
     latest.current = { grid, frame, feeds, needs: needPoints, theme, popup: f.popup, lang, walking }
@@ -671,16 +673,4 @@ function Stat({ label, value, urgent }: { label: string; value: string; urgent?:
       <dd className={`text-[22px] font-semibold tabular-nums ${urgent ? 'text-urgent' : ''}`}>{value}</dd>
     </div>
   )
-}
-
-/** The page's resolved light / dark theme, from <html data-theme> (set by ThemeSwitcher). */
-function useResolvedTheme(): 'light' | 'dark' {
-  const read = () => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
-  const [theme, setTheme] = useState<'light' | 'dark'>(read)
-  useEffect(() => {
-    const obs = new MutationObserver(() => setTheme(read()))
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => obs.disconnect()
-  }, [])
-  return theme
 }

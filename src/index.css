@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import 'leaflet/dist/leaflet.css';
 
 /*
  * Apple-style design (after the "Flood Help Desk" concept): white and light-grey surfaces,
@@ -116,39 +115,83 @@ h3 {
   outline-offset: 2px;
 }
 
-/* Map pins rendered with L.divIcon: white disc, hairline ring, blue line icon; urgent = red. */
-.need-pin {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 9999px;
-  border: 1px solid var(--hairline);
+/* MapLibre popups and controls, restyled to match the app (rounded, soft shadow, light and dark). */
+.maplibregl-popup-content {
+  border-radius: 16px;
+  padding: 12px 14px;
   background: var(--tile);
-  color: var(--accent);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.18);
+  color: var(--ink);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.18);
+  font-family: var(--font-sans);
 }
-.need-pin svg {
-  width: 20px;
-  height: 20px;
+.maplibregl-popup-tip {
+  border-top-color: var(--tile) !important;
+  border-bottom-color: var(--tile) !important;
 }
-.need-pin.urgent {
-  background: var(--urgent);
-  border-color: var(--urgent);
+.maplibregl-popup-close-button {
+  font-size: 20px;
+  padding: 2px 8px;
+  color: var(--ink-2);
+}
+.jd-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 14px;
+  line-height: 1.35;
+  min-width: 180px;
+}
+.jd-popup-badge {
+  align-self: flex-start;
+  border-radius: 9999px;
+  padding: 1px 9px;
+  font-size: 12px;
+  font-weight: 600;
   color: #fff;
 }
-.need-pin.selected {
-  transform: scale(1.25);
-  border: 2px solid var(--accent);
+.jd-popup-title {
+  font-size: 16px;
+  font-weight: 700;
+  padding-right: 16px;
 }
-
-.leaflet-container {
-  font-family: var(--font-sans);
+.jd-popup-line {
+  color: var(--ink-2);
+}
+.jd-popup-img {
+  margin-top: 6px;
+  border-radius: 10px;
+  max-height: 180px;
+  object-fit: cover;
+}
+.jd-popup-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.jd-popup-actions button {
+  flex: 1;
+  border-radius: 9999px;
+  padding: 6px 10px;
+  font-weight: 600;
   background: var(--surface-alt);
+  color: var(--ink);
 }
-
-/* Dark mode: darken the OpenStreetMap tiles so the map doesn't glare. */
-[data-theme='dark'] .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+.jd-popup-link {
+  margin-top: 6px;
+  font-weight: 600;
+  color: var(--link);
+}
+.maplibregl-ctrl-group {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.15) !important;
+}
+:root[data-theme='dark'] .maplibregl-ctrl-group {
+  background: #2c2c2e;
+}
+:root[data-theme='dark'] .maplibregl-ctrl-group button + button {
+  border-top-color: #3a3a3c;
+}
+:root[data-theme='dark'] .maplibregl-ctrl-icon {
+  filter: invert(1);
 }

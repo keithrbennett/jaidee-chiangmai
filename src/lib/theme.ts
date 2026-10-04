@@ -43,3 +43,18 @@ export function useTheme() {
 
   return { theme, setTheme, resolved }
 }
+
+/**
+ * The resolved light / dark theme, read from <html data-theme> (written by ThemeSwitcher's useTheme), for
+ * code outside CSS that needs it, like map styles.
+ */
+export function useResolvedTheme(): 'light' | 'dark' {
+  const read = () => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+  const [resolved, setResolved] = useState<'light' | 'dark'>(read)
+  useEffect(() => {
+    const obs = new MutationObserver(() => setResolved(read()))
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
+  return resolved
+}

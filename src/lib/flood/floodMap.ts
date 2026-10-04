@@ -2,23 +2,15 @@ import maplibregl, { type GeoJSONSource, type Map as MlMap } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { cellAt, cellCenter, gridCorners, pxToLat, pxToLng, type Grid } from './grid'
 import { isRidGauge, type FloodFeeds } from './feeds'
+import { TERRAIN_SOURCE, mapStyle, type MapLang } from '../map/style'
 
 /**
- * The 3D city for the flood simulator: OpenFreeMap vector tiles (OpenStreetMap buildings extruded to
- * their mapped height), Terrarium terrain, the model's depth grid draped over the terrain, live gauges,
+ * The 3D city for the flood simulator, in the app's map style (src/lib/map/style.ts: OpenStreetMap buildings in
+ * 3D, Terrarium terrain), the model's depth grid draped over the terrain, live gauges,
  * and in street walk mode the water as 3D blocks around you.
  */
 
 type GridMeta = Omit<Grid, 'z' | 'river'>
-
-const STYLE = {
-  light: 'https://tiles.openfreemap.org/styles/positron',
-  dark: 'https://tiles.openfreemap.org/styles/dark',
-}
-export const styleUrl = (theme: 'light' | 'dark') => STYLE[theme]
-const TERRAIN_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'
-const TERRAIN_ATTRIBUTION =
-  '<a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noreferrer">Terrain Tiles (SRTM)</a>'
 
 /** Depth classes for the water, m, with their colours. Shared with the legend on the page. */
 export const DEPTH_CLASSES: { min: number; color: [number, number, number] }[] = [
@@ -42,10 +34,10 @@ export const GAUGE_COLORS = { over: '#ff3b30', near: '#ff9f0a', ok: '#30d158', n
 const WALK_RADIUS_M = 450
 const rgb = ([r, g, b]: [number, number, number]) => `rgb(${r},${g},${b})`
 
-export function createFloodMap(container: HTMLElement, theme: 'light' | 'dark') {
+export function createFloodMap(container: HTMLElement, theme: 'light' | 'dark', lang: MapLang) {
   const map = new maplibregl.Map({
     container,
-    style: STYLE[theme],
+    style: mapStyle(theme, lang),
     center: [99.0, 18.788],
     zoom: 12.7,
     pitch: 55,
@@ -59,19 +51,9 @@ export function createFloodMap(container: HTMLElement, theme: 'light' | 'dark') 
 
 /** (Re)add our sources and layers; call on every `style.load`, since a style switch drops them. */
 export function addFloodLayers(map: MlMap, theme: 'light' | 'dark', canvas: HTMLCanvasElement, grid: GridMeta | null) {
-  if (!map.getSource('terrain')) {
-    map.addSource('terrain', {
-      type: 'raster-dem',
-      tiles: [TERRAIN_TILES],
-      encoding: 'terrarium',
-      tileSize: 256,
-      // The model runs on zoom-12 terrain; drawing the same tiles keeps the water on the ground it was computed for.
-      maxzoom: 12,
-      attribution: TERRAIN_ATTRIBUTION,
-    })
-  }
-  // This runs again when the grid arrives; no need to rebuild the terrain then.
-  if (!map.getTerrain()) map.setTerrain({ source: 'terrain', exaggeration: 1 })
+  // The model runs on the same zoom-12 terrain as the map; drawn unexaggerated so the water sits on the ground
+  // it was computed for.
+  if (map.getTerrain()?.exaggeration !== 1) map.setTerrain({ source: TERRAIN_SOURCE, exaggeration: 1 })
 
   if (grid && !map.getSource('flood')) {
     map.addSource('flood', { type: 'canvas', canvas, coordinates: gridCorners(grid), animate: true })
@@ -83,24 +65,8 @@ export function addFloodLayers(map: MlMap, theme: 'light' | 'dark', canvas: HTML
         source: 'flood',
         paint: { 'raster-opacity': 0.85, 'raster-resampling': 'nearest', 'raster-fade-duration': 0 },
       },
-      map.getLayer('city-buildings') ? 'city-buildings' : undefined,
+      map.getLayer('buildings') ? 'buildings' : undefined,
     )
-  }
-
-  if (!map.getLayer('city-buildings')) {
-    map.addLayer({
-      id: 'city-buildings',
-      type: 'fill-extrusion',
-      source: 'openmaptiles',
-      'source-layer': 'building',
-      minzoom: 13,
-      paint: {
-        'fill-extrusion-color': theme === 'dark' ? '#3a3a3c' : '#e5e5ea',
-        'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 6],
-        'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-        'fill-extrusion-opacity': 0.9,
-      },
-    })
   }
 
   if (!map.getSource('walk-water')) {

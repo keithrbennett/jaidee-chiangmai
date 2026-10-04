@@ -1,67 +1,56 @@
-# Jaidee · แผนที่ช่วยกัน (Mutual Aid Map)
+# Jaidee · แผนที่ช่วยกัน
 
-Hackathon MVP for Chiang Mai: partner-verified needs (schools, temples, shelters, haze and flood relief) on a map, matched with newcomers who want to help but don't know where to start or speak Thai.
+Thailand's public water and flood information in one place, on Apple Maps–style 3D maps: river gauges against their banks, rain and radar, large dams, cameras, a 3-day forecast for every province, and what people see on the ground. Every one of the 77 provinces has its own page. Where a province opens a command centre, people can ask for help and report missing relatives, and staff send rescue teams and follow them on the map. Volunteers find tasks that staff have checked, and the flood simulator shows which Chiang Mai streets go under first.
 
-**All data is fictional demo data** (`src/data/needs.ts`).
+In danger? Call **1784** (disaster, DDPM) or **1669** (medical).
 
 ## Run it
 
-Requires **Node.js 22.12 or newer** (`node -v`; with nvm, `nvm install` picks up `.nvmrc`) and npm.
+Requires **Node.js 22.13 or newer** (built-in SQLite) and npm.
 
 ```bash
-git clone git@github.com:keithrbennett/jaidee-chiangmai.git
-cd jaidee-chiangmai
 npm install
-cp .env.example .env      # optional: ANTHROPIC_API_KEY for the server's Claude endpoint (not used by the demo UI yet)
+cp .env.example .env      # set ADMIN_USERNAME / ADMIN_PASSWORD (12+ chars) and IP_HASH_SALT
 npm run dev               # web on http://localhost:5173, API on :8787 (proxied as /api)
 ```
 
-Single-port demo build:
+One port for production: `npm run build && npm start` (http://localhost:8787). The database and uploaded photos live in `data/` (git-ignored; `DATA_DIR` moves it). Behind a reverse proxy set `TRUST_PROXY` so rate limits see real client addresses.
 
-```bash
-npm run build && npm start   # http://localhost:8787 serves the app and the API
-```
+The first start creates the admin from `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Sign in at `#/command`; create staff accounts (one province each) under Admin.
 
-The whole demo works without an API key. If you create or edit `.env` while `npm run dev` is running, restart it.
+## What's in it
 
-## What's in the demo
-
-| Screen | What it shows |
+| Page | What it does |
 |---|---|
-| **Home** | One question, "What would you like to do?", and three large cards that are the whole choice: **I want to help** (green, to the list and map), **I need help** (orange-red, to posting a need; for individuals as well as groups) and **My tasks**. During haze or flood mode a red bar above them links straight to the urgent needs. |
-| **Find a need** | Map + list of verified needs sorted by distance (browser location if shared and near Chiang Mai, otherwise Nimman). Category filter chips. Needs whose verification is older than 14 days are hidden. |
-| **Need detail** | Who verified it and when, English + Thai original, skills, spots left, host-confirmed impact progress, safety rules added automatically per category, slot picker, **I'm in** → check-in code (or waitlist when full). |
-| **Emergency modes** | 🔴 Haze / 🔵 Flood toggle (admin-only in a real build). Shows only crisis needs, urgent first, with a live AQI or Ping River P.1 badge (see *Live conditions* below). |
-| **My tasks** | Your commitments, check-in codes, cancel, and a pledged-hours impact receipt. |
-| **Flood simulator 3D** | A 3D model of the city (OpenStreetMap buildings on terrain) with live river gauges, rain gauges and other water-level telemetry. Set rain (or use the 48-hour forecast), drain capacity, the P.1 level and how fast it rises; run at ×60 to ×3600 and watch where the water goes. **Street walk** drops the camera to street level with the water as 3D blocks and the depth under the crosshair. Jaidee needs in flooded streets turn red. See *Flood simulator* below. |
-| **Post a need** | Describe the need in your own words, in any of the app's languages (**Use a sample** fills in an example in the selected language) → **Submit** → a *Submitted* confirmation. Demo only: nothing is sent yet, so no API key is needed. |
+| **Thailand** `#/` | Live counts (gauges over the bank, high, dams over 80 %, open command centres), the national 3D map, rivers over the bank now, large dams, and quick actions that find your province from your location. |
+| **Map** `#/map` | Full-screen 3D globe: every gauge as a column (height = how full, colour = status), dams as columns, rain heatmap, radar, people's reports, shelters, cameras. Provinces with rivers over the bank are tinted; tap one to open it. |
+| **Provinces** `#/provinces` | All 77, by region, with how many gauges are over the bank or high. |
+| **Province** `#/p/<slug>` | Report the water level · command centre status (ask for help / find a person, or the emergency numbers) · *is there flooding near me?* (location or sub-district, computed on the device) · rain in the next 24 h · every gauge against its bank with trend and age · dams · air quality · links to agency sites. |
+| `…/map` `…/weather` `…/area` | 3D province map with tap-to-confirm reports · 3-day forecast, 48-hour rain and radar (replay 2 h) · districts coloured by the highest level reported in 24 h. |
+| `…/report` `…/updates` | Report a water level in 3 steps (GPS, a pin, or a pasted Google Maps / LINE link; 6 levels; trend; can vehicles pass; photo with location data stripped) · the feed, with "still flooded" / "gone down". Points fade at 12 and 24 h and leave the map at 36 h. |
+| `…/lost-found` `…/missing` `…/help` `…/open` `…/cctv` | Lost and found board (scam warning; the poster can close it from their device) · missing people (to the command centre only, never published) · help requests with a code to follow progress · agencies asking for a command centre · agency camera stills. Help and missing-person forms only open where a command centre is active; elsewhere the page shows the emergency numbers, so no request waits unread. |
+| **Command centre** `#/command` | Staff: help requests on a map with status and team assignment, teams with a tracking link for their phone (`#/track/<token>`), missing people, shelters, volunteer needs to check and publish, report moderation, opening or closing the centre. Admins: accounts and agency requests. |
+| **Volunteer** `#/volunteer` | Needs that staff have checked, on a map; post a need (checked before it is listed). |
+| **Flood simulator 3D** `#/flood` | See below. |
+| **Data sources** `#/sources` | What comes from where, and what isn't connected yet. |
 
-Every screen has its own URL (hash routes, so no server config is needed): `#/` home, `#/find` list + map, `#/find?cat=school` filtered list (older `#/?cat=school` links still work), `#/need/<id>` one need (with a Share button), `#/tasks`, `#/post`, `#/flood` (flood simulator), `#/about` (how it works). The browser back button works, and opening a need link switches to the mode it belongs to. On phones the tabs move to a bottom bar.
+Thai, English and 简体中文 throughout (`src/i18n/`; `en.ts` is the source and `th.ts` / `zh.ts` must have every key or the build fails). Light and dark, on phones and desktops.
 
-The interface is available in ไทย, English and 简体中文 (flag menu in the header; defaults to the browser language, remembered in `localStorage`). UI text lives in `src/i18n/` (`en.ts` is the source; `th.ts` and `zh.ts` must have every key or the build fails). The sample needs are content and are not translated yet.
+## Data
 
-Design: Apple-style, after the "Flood Help Desk" concept. Inter + Noto Sans Thai, white and #f5f5f7 surfaces, near-black ink, one blue accent (#0071e3), red only for urgent, pill buttons (44px minimum, 56px for the one main action on a screen), borderless 18px tiles, a frosted sticky nav, simple inline SVG line icons instead of emoji, and automatic dark mode (follows the system setting). Raw colour values are CSS variables in `src/index.css` (swapped for dark mode) behind Tailwind tokens (`bg-paper`, `bg-card`, `text-ink`, `bg-go`, `text-urgent` …); icons are in `src/lib/icons.ts`. The logo is `public/jaidee-chiangmai-logo.png`; the header mark, favicons, Apple touch icon, PWA icons (`manifest.webmanifest`) link-preview image (`og-image.png`) and home-page logo (`logo-full.png`, transparent) in `public/` are generated from it; shared buttons/cards are in `src/components/ui.tsx`.
+All public, no keys. Fetched by the server and cached (10 min for gauges and rain, 30 min for forecasts and dams); if a source is down, the last good reading is served.
 
-State (mode, language, commitments, posted needs) lives in `localStorage`. There is no database. To reset, clear site data in the browser.
+| Source | Used for |
+|---|---|
+| RID SWOC (`bigdata-swoc.rid.go.th`) | River gauges vs bank: RID hydrology, RID telemetry and HII stations, with the agencies' own over/under-bank figures and trends |
+| Thaiwater, HII (`api-v3.thaiwater.net`) | EGAT and National Parks gauges, ~4,600 rain gauges (incl. DWR), large dams, storms, CCTV list |
+| Air4Thai, PCD | Air quality (Thai AQI). Their server sends the wrong certificate chain; `server/certs/` adds the right intermediates for that host only. |
+| Open-Meteo | Hourly (48 h) and daily (3 days) forecast for each province centre. Free for non-commercial use; a commercial service needs their paid plan. |
+| RainViewer | Radar tiles (free tiles stop at zoom 7) |
+| OpenFreeMap (OpenStreetMap), AWS Terrain Tiles | Base map, 3D buildings, terrain and hillshade (`src/lib/map/style.ts`) |
+| OCHA COD-AB (Royal Thai Survey Dept., CC BY-IGO), geoBoundaries (CC BY 4.0) | Province, district and sub-district names and outlines: `python3 scripts/build_admin_geo.py` writes `public/geo/` and `src/data/provinces.ts` |
 
-## Stack
-
-- Vite + React 19 + TypeScript, Tailwind CSS v4
-- Leaflet / react-leaflet with OpenStreetMap tiles (no map API key)
-- MapLibre GL with OpenFreeMap vector tiles and AWS Terrain Tiles for the flood simulator (no keys; loaded only on that page)
-- `server/index.js`: Express + `@anthropic-ai/sdk`, one endpoint `POST /api/translate-need` using structured JSON output (kept for later; the demo's **Submit** doesn't call it yet). The API key stays on the server. Model defaults to `claude-sonnet-4-5`; override with `CLAUDE_MODEL`.
-- `GET /api/conditions` in the same server: live conditions for the header badge (see below)
-
-## Live conditions
-
-The status badge next to the mode switch shows real readings, fetched by the server and cached for 10 minutes (no API keys):
-
-- **Air (Normal and Haze modes):** Air4Thai, Pollution Control Department, station 36t Yupparaj Wittayalai School (35t City Hall if 36t has no reading). Thai AQI scale and wording: 0–25 very good, 26–50 good, 51–100 moderate, 101–200 starting to affect health, 201+ affects health. Haze mode adds PM2.5.
-- **River (Flood mode):** Thaiwater (data from the Royal Irrigation Department), gauge P.1 at Nawarat Bridge, in metres on the gauge's own scale, against its 3.7 m critical level.
-
-The emergency modes still pick which needs are shown; the badge always shows the real reading, so Haze mode on a clear day shows good air. Hover the badge for the source, station and time. If the server can't reach a source it keeps the last good reading; if the browser can't reach the server at all, the badge falls back to fixed demo values marked *(demo)*.
-
-`air4thai.pcd.go.th` sends the wrong intermediate certificates, so `server/certs/air4thai-intermediates.pem` adds the right Let's Encrypt ones for that host only (TLS verification stays on). If Air4Thai's certificate changes and the air reading starts failing, check the server log.
+Not connected yet: RID telerid live readings (need an account from RID), DWR telemetry (no published API), GISTDA satellite flood extent and TMD warnings (need API keys).
 
 ## Flood simulator
 
@@ -73,26 +62,33 @@ The emergency modes still pick which needs are shown; the badge always shows the
 - **Rain and drains:** rain falls evenly on the area; drains are one figure in mm per hour removed from any wet cell. There is no pipe network yet (no SWMM) because the drain data is not public.
 - **Not here yet:** CCTV (needs a feed from the municipality), HEC-RAS or SWMM runs (would need a built model on a server), LiDAR terrain for real street-level depths.
 
-`GET /api/flood` returns every Thaiwater water-level and rain gauge in Chiang Mai province plus the Open-Meteo hourly rain forecast, cached for 10 minutes like `/api/conditions`.
+`GET /api/flood` returns the gauges and rain gauges of Chiang Mai province and the city's hourly rain forecast.
 
 ## Layout
 
 ```
+server/
+  index.js                 app, routes, static files
+  feeds.js                 external data, normalised and cached
+  db.js                    SQLite schema (node:sqlite)
+  lib/                     auth (scrypt, sessions), geography, fetch/cache/rate-limit helpers
+  routes/data.js           /api/national, /api/province/:code, /api/rain, /api/air, /api/cctv, /api/flood
+  routes/community.js      reports, lost and found, missing people, help requests, needs, shelters
+  routes/command.js        staff API and team tracking
 src/
-  App.tsx                 state, filtering, sorting, layout
-  lib/router.ts           hash routes (#/need/<id>, #/tasks, …)
-  i18n/                   UI text: en.ts (source), th.ts, zh.ts + useI18n()
-  data/needs.ts           seed needs (edit here to change the demo)
-  lib/categories.ts       category colours, emoji, 14-day TTL (names + safety rules are in i18n/)
-  lib/needs.ts            verification / spots helpers
-  components/             Header (+ mobile BottomNav), NeedMap, NeedList, NeedDetail, MyTasks, PostNeed, About
-server/index.js           Claude endpoint, live conditions and flood feeds, serves dist/ in production
-src/lib/conditions.ts     useConditions() + Thai AQI bands for the header badge
-src/lib/flood/            flood simulator: grid + river fit, solver, Web Worker, live feeds, MapLibre layers
-src/components/FloodSim   the flood simulator page (lazy-loaded)
-src/data/pingRiver.ts     Ping River centre line through the city (OpenStreetMap)
+  App.tsx, lib/router.ts   hash routes
+  components/pages/        Thailand, map, provinces, volunteer, command centre, sources
+  components/province/     the province pages
+  components/map/MapView   MapLibre map (lazy-loaded) in our style
+  lib/map/                 style, data layers (3D columns, heatmap, radar …), popups
+  lib/flood/               flood simulator: grid, solver, worker, feeds, map
+scripts/                   build_admin_geo.py
+public/geo/                provinces, districts, sub-districts
 ```
 
-## Deliberately out of scope for the hackathon
+## Privacy and safety
 
-Social login, Nostr-signed verify/check-in/confirm events, real accounts, QR scanning, PWA/offline, donations.
+- No visitor IP is stored, only a salted hash for rate limits and one-vote-per-person.
+- Report photos are re-encoded in the browser before upload, which drops EXIF (including GPS).
+- Missing-person reports and help requests are visible only to staff of that province (and admins); the public help status page shows progress, not personal details.
+- The camera proxy only fetches cameras on the agency list, and never private network addresses.

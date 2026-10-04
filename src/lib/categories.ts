@@ -11,6 +11,3 @@ export const CATEGORY_ICONS: Record<Category, IconName> = {
   elderly: 'elderly',
   environment: 'environment',
 }
-
-/** Verification older than this is treated as stale and hidden from volunteers. */
-export const VERIFICATION_TTL_DAYS = 14

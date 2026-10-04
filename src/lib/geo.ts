@@ -1,23 +1,58 @@
-export interface LatLng {
-  lat: number
-  lng: number
+import { useEffect, useState } from 'react'
+import { PROVINCES, type Province } from '../data/provinces'
+
+/** Province, district and sub-district geography from public/geo (built by scripts/build_admin_geo.py). */
+
+type FC = GeoJSON.FeatureCollection
+const cache = new Map<string, Promise<unknown>>()
+function load<T>(path: string): Promise<T> {
+  if (!cache.has(path)) cache.set(path, fetch(path).then((r) => (r.ok ? r.json() : Promise.reject(new Error(path)))))
+  return cache.get(path) as Promise<T>
 }
 
-/** Nimmanhaemin — where many newcomers to Chiang Mai stay. Used when geolocation is unavailable. */
-export const DEFAULT_LOCATION: LatLng = { lat: 18.7995, lng: 98.9675 }
-export const CHIANG_MAI_CENTER: LatLng = { lat: 18.7883, lng: 98.9853 }
+export const loadProvinceShapes = () => load<FC>('/geo/provinces.geojson')
+export const loadDistricts = (code: string) => load<FC>(`/geo/p/${code}/districts.geojson`)
+/** [pcode, th, en, district pcode, lng, lat] */
+export type Tambon = [string, string, string, string, number, number]
+export const loadTambons = (code: string) => load<Tambon[]>(`/geo/p/${code}/tambons.json`)
 
-/** Great-circle distance in kilometres. */
-export function distanceKm(a: LatLng, b: LatLng): number {
-  const R = 6371
-  const toRad = (d: number) => (d * Math.PI) / 180
-  const dLat = toRad(b.lat - a.lat)
-  const dLng = toRad(b.lng - a.lng)
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2
-  return 2 * R * Math.asin(Math.sqrt(h))
+export function useGeo<T>(loader: (() => Promise<T>) | null) {
+  const [data, setData] = useState<{ loader: typeof loader; value: T } | null>(null)
+  useEffect(() => {
+    if (!loader) return
+    let live = true
+    loader()
+      .then((value) => live && setData({ loader, value }))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [loader])
+  return data && data.loader === loader ? data.value : null
 }
 
-export function formatKm(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`
+function inRing([x, y]: [number, number], ring: number[][]) {
+  let hit = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i]
+    const [xj, yj] = ring[j]
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit
+  }
+  return hit
+}
+
+export function inFeature(p: [number, number], f: GeoJSON.Feature) {
+  const g = f.geometry
+  const polys = g.type === 'MultiPolygon' ? g.coordinates : g.type === 'Polygon' ? [g.coordinates] : []
+  return polys.some((poly) => inRing(p, poly[0] as number[][]))
+}
+
+/** The province a point is in (exact, from the outlines). */
+export async function provinceAt(lng: number, lat: number): Promise<Province | null> {
+  const shapes = await loadProvinceShapes()
+  const hit = shapes.features.find((f) => {
+    const b = f.properties?.bbox as number[]
+    return lng >= b[0] && lng <= b[2] && lat >= b[1] && lat <= b[3] && inFeature([lng, lat], f)
+  })
+  return hit ? (PROVINCES.find((p) => p.code === hit.properties?.code) ?? null) : null
 }

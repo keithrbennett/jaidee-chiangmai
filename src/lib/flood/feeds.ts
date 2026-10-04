@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import type { Station } from '../api'
 
-/** One water-level station from GET /api/flood (Thaiwater). */
+/** One water-level station as the simulator uses it. */
 export interface Gauge {
   code: string
   name: string
@@ -42,6 +43,27 @@ export const isRidGauge = (g: Gauge) => /^P\.\d/.test(g.code)
 
 const REFRESH_MS = 10 * 60 * 1000
 
+/** What GET /api/flood sends: gauges in the shared station shape (see src/lib/api.ts). */
+interface FloodResponse {
+  gauges: Station[] | null
+  rain: RainGauge[] | null
+  forecast: { time: string; mm: number }[] | null
+}
+
+const toGauge = (s: Station): Gauge => ({
+  code: s.code,
+  name: s.name,
+  river: s.river ?? '',
+  agency: s.agency,
+  lat: s.lat,
+  lng: s.lng,
+  levelMsl: s.levelMsl,
+  bankMsl: s.bankMsl,
+  level: s.gauge?.level ?? null,
+  critical: s.gauge?.critical ?? null,
+  observedAt: s.observedAt,
+})
+
 /** Live gauges, rain and forecast for the flood page, refreshed every 10 minutes. */
 export function useFloodFeeds() {
   const [feeds, setFeeds] = useState<FloodFeeds | null>(null)
@@ -51,14 +73,18 @@ export function useFloodFeeds() {
     let cancelled = false
     const load = () =>
       fetch('/api/flood')
-        .then((res) => (res.ok ? (res.json() as Promise<FloodFeeds>) : null))
+        .then((res) => (res.ok ? (res.json() as Promise<FloodResponse>) : null))
         .catch(() => null)
         .then((f) => {
           if (cancelled) return
           if (f) {
             // Keep the forecast from the current hour on.
             const hourAgo = Date.now() - 3600_000
-            setFeeds({ ...f, forecast: f.forecast?.filter((h) => new Date(h.time).getTime() > hourAgo) ?? null })
+            setFeeds({
+              gauges: f.gauges?.map(toGauge) ?? null,
+              rain: f.rain,
+              forecast: f.forecast?.filter((h) => new Date(h.time).getTime() > hourAgo) ?? null,
+            })
           }
           setFailed(!f)
         })
