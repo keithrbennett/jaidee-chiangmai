@@ -12,10 +12,25 @@ export interface Gauge {
   /** Water surface and lowest bank, m above mean sea level. */
   levelMsl: number | null
   bankMsl: number | null
+  /** Metres above (+) or below (−) the bank, as the agency publishes it. */
+  over: number | null
   /** Reading on the gauge's own scale, for gauges that have one (e.g. P.1). */
   level: number | null
   critical: number | null
   observedAt: string
+}
+
+/** A place to simulate: a gauge with a bank level (the river is held at bank + how far it is over). */
+export interface Spot {
+  code: string
+  name: string
+  river: string | null
+  lng: number
+  lat: number
+  over: number
+  observedAt: string
+  /** Distance from the provincial city, km. */
+  km: number
 }
 
 export interface RainGauge {
@@ -31,23 +46,26 @@ export interface RainGauge {
 export interface FloodFeeds {
   gauges: Gauge[] | null
   rain: RainGauge[] | null
-  /** Hourly rain forecast for the city centre, mm per hour. */
+  /** Hourly rain forecast for the province centre, mm per hour. */
   forecast: { time: string; mm: number }[] | null
+  /** The provincial city, [lng, lat]. */
+  city: [number, number] | null
+  /** Gauges to simulate around, nearest the city first. */
+  spots: Spot[]
 }
 
-/** The Ping River gauge at Nawarat Bridge, the city's reference for floods (RID). */
-export const P1 = { code: 'P.1', lat: 18.786961, lng: 99.005089, bankMsl: 304.2, critical: 3.7 }
-
-/** RID river gauges have codes like P.1, P.67; the rest are other agencies' telemetry stations. */
-export const isRidGauge = (g: Gauge) => /^P\.\d/.test(g.code)
+/** RID's own river gauges (P.1, C.2, Y.1C …) stand out on the map; the rest are other agencies' telemetry. */
+export const isRidGauge = (g: Gauge) => g.agency === 'RID' || /^[A-Z]{1,2}\.\d/.test(g.code)
 
 const REFRESH_MS = 10 * 60 * 1000
 
-/** What GET /api/flood sends: gauges in the shared station shape (see src/lib/api.ts). */
+/** What GET /api/flood/:code sends: gauges in the shared station shape (see src/lib/api.ts). */
 interface FloodResponse {
   gauges: Station[] | null
   rain: RainGauge[] | null
   forecast: { time: string; mm: number }[] | null
+  city: [number, number] | null
+  spots: Spot[]
 }
 
 const toGauge = (s: Station): Gauge => ({
@@ -59,20 +77,21 @@ const toGauge = (s: Station): Gauge => ({
   lng: s.lng,
   levelMsl: s.levelMsl,
   bankMsl: s.bankMsl,
+  over: s.over,
   level: s.gauge?.level ?? null,
   critical: s.gauge?.critical ?? null,
   observedAt: s.observedAt,
 })
 
-/** Live gauges, rain and forecast for the flood page, refreshed every 10 minutes. */
-export function useFloodFeeds() {
+/** Live gauges, rain, forecast and spots for a province, refreshed every 10 minutes. */
+export function useFloodFeeds(code: string) {
   const [feeds, setFeeds] = useState<FloodFeeds | null>(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     const load = () =>
-      fetch('/api/flood')
+      fetch(`/api/flood/${code}`)
         .then((res) => (res.ok ? (res.json() as Promise<FloodResponse>) : null))
         .catch(() => null)
         .then((f) => {
@@ -84,6 +103,8 @@ export function useFloodFeeds() {
               gauges: f.gauges?.map(toGauge) ?? null,
               rain: f.rain,
               forecast: f.forecast?.filter((h) => new Date(h.time).getTime() > hourAgo) ?? null,
+              city: f.city,
+              spots: f.spots ?? [],
             })
           }
           setFailed(!f)
@@ -94,7 +115,7 @@ export function useFloodFeeds() {
       cancelled = true
       clearInterval(timer)
     }
-  }, [])
+  }, [code])
 
   return { feeds, failed }
 }

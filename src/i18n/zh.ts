@@ -556,6 +556,23 @@ export const zh: Messages = {
     notFound: '该任务已不在列表中。',
     back: '全部任务',
     distance: (km) => `距离 ${km}`,
+    countTasks: (n) => `${n} 项任务需要志愿者`,
+    countPeople: (n) => `需要 ${n} 人`,
+    near: '我附近',
+    allKinds: '全部类型',
+    noneFiltered: '没有符合条件的任务，换个筛选试试。',
+    noneTitle: '目前没有已核实的志愿任务',
+    now: {
+      title: '现在就能帮忙',
+      report: '报告您所在位置的水位',
+      reportSub: '一张照片、点三下，帮助附近的人做决定',
+      alerts: '帮别人开启提醒',
+      alertsSub: '为父母或邻居设置提醒',
+      post: '招募志愿者',
+      postSub: '为您的学校、寺庙或社区发布，工作人员先核实',
+      guide: '做好准备',
+      guideSub: '洪水、粉尘、地震等的简短步骤',
+    },
   },
 
   postNeed: {
@@ -1049,8 +1066,17 @@ export const zh: Messages = {
 
   flood: {
     title: '洪水模拟 3D',
-    sub: '暴雨、滨河水位上涨：看哪些街道先被淹、水有多深，提前规划救援。',
+    sub: '暴雨加河水上涨：看看哪些街道先被淹、淹多深，提前规划救援。',
     modelBadge: '用于规划的模型，不是预报',
+    pick: {
+      sub: '选择一个府，模型会围绕您选定的水位站（或市中心）在真实地形上、在您的浏览器中运行。',
+      flooding: '目前河水漫堤的府',
+      note: '所有府都可用：河流和运河来自 OpenStreetMap，地面来自 SRTM 地形，水位来自皇家灌溉厅和水信息研究所的水位站。',
+    },
+    spot: '模拟位置',
+    city: '市中心',
+    myLocation: '我的位置',
+    noRiver: '此处地图上没有河流或运河，只模拟降雨。',
     loading: '正在加载地形…',
     loadError: (msg) => `无法加载地形：${msg}`,
     live: {
@@ -1068,6 +1094,8 @@ export const zh: Messages = {
       asOf: (time) => `${time} 数据`,
       on: '实时',
       off: '未接入',
+      riverRef: (name, over) => `${name}：${over >= 0 ? '高于' : '低于'}河岸 ${Math.abs(over).toFixed(2)} 米`,
+      noGauge: '未选择水位站：只模拟降雨',
     },
     scenario: {
       title: '情景',
@@ -1083,6 +1111,8 @@ export const zh: Messages = {
       p1Rise: '水位上涨',
       perHour: '米/小时',
       useLive: '用实时值',
+      headStart: '开始时水位相对河岸',
+      headHint: '0 表示与河岸齐平；高于此值，河水会从地势低处漫出。',
     },
     run: '开始',
     pause: '暂停',
@@ -1098,6 +1128,7 @@ export const zh: Messages = {
       rainNow: '当前降雨',
       needs: '淹水街道中的 Jaidee 需求',
       needsNone: '暂无',
+      headNow: '现在水位相对河岸',
     },
     legend: {
       depth: '水深',
@@ -1135,12 +1166,12 @@ export const zh: Messages = {
       body: [
         '水流按浅水（Saint-Venant）方程的局部惯性形式计算，与 LISFLOOD-FP 模型方法相同，在覆盖市区的 36 米网格上，在您的浏览器中运行。',
         '地面来自 SRTM 卫星地形，已滤除屋顶和树木。市区仍可能偏差数米，请把水深当作哪些街道先淹的参考，而不是精确数字。',
-        '整段市区河道的水面设为高出河岸“P.1 水位减 3.7 米”，因此 P.1 超过警戒水位后，河水会在地形允许的地方漫出。模型中的河水不会用完，所以长时间运行显示的是该水位可能淹到的最大范围。',
+        '河流和运河来自 OpenStreetMap。每条水道以旁边地面的高度作为河岸，水位设为河岸加上所选水位站高于（或低于）其河岸的高度，因此会在地形允许的地方开始漫出。模型中的河水不会耗尽，运行时间越长越能看出该水位最多能淹到哪里。流入大海的水会离开模型。',
         '模型里还没有雨水管网（还没有 SWMM）：排水用一个数值（毫米/小时）从每个有水的格子中扣除。降雨在整个区域均匀分布。',
         '用于实际决策前，应先与真实发生过的洪水（例如 2024 年 10 月）对照检验。',
       ],
       sources:
-        '数据：Thaiwater（皇家灌溉厅等机构的水位站和雨量站）、Open-Meteo（降雨预报）、AWS 上的 Terrain Tiles（SRTM）、经 OpenFreeMap 的 OpenStreetMap（建筑、滨河）。',
+        '数据：皇家灌溉厅和水信息研究所水位站（经 RID SWOC 和 Thaiwater）、Open-Meteo（降雨预报）、AWS 上的 Terrain Tiles（SRTM）、经 OpenFreeMap 的 OpenStreetMap（建筑、河流、运河、海洋）。',
     },
   },
 }

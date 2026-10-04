@@ -565,6 +565,23 @@ export const en = {
     notFound: 'This task is no longer listed.',
     back: 'All tasks',
     distance: (km: string) => `${km} away`,
+    countTasks: (n: number) => `${n} ${n === 1 ? 'task needs' : 'tasks need'} volunteers`,
+    countPeople: (n: number) => `${n} people wanted`,
+    near: 'Near me',
+    allKinds: 'All kinds',
+    noneFiltered: 'Nothing matches. Try another filter.',
+    noneTitle: 'No checked tasks right now',
+    now: {
+      title: 'You can help right now',
+      report: 'Report the water where you are',
+      reportSub: 'A photo and three taps help everyone nearby decide',
+      alerts: 'Help someone get alerts',
+      alertsSub: 'Set up alerts for a parent or a neighbour',
+      post: 'Ask for volunteers',
+      postSub: 'For your school, temple or community: staff check it first',
+      guide: 'Get ready',
+      guideSub: 'Short steps for floods, dust, earthquakes and more',
+    },
   },
 
   postNeed: {
@@ -1059,8 +1076,17 @@ export const en = {
 
   flood: {
     title: 'Flood simulator 3D',
-    sub: 'Heavy rain, a rising Ping: see which streets flood first and how deep, to plan help ahead.',
+    sub: 'Heavy rain and a rising river: see which streets flood first and how deep, to plan help ahead.',
     modelBadge: 'Model for planning, not a forecast',
+    pick: {
+      sub: 'Pick a province. The model runs around a river gauge you choose (or the city centre), on real terrain, in your browser.',
+      flooding: 'Rivers over the bank now',
+      note: 'Every province works: rivers and canals come from OpenStreetMap, the ground from SRTM terrain, river levels from RID and HII gauges.',
+    },
+    spot: 'Where to simulate',
+    city: 'City centre',
+    myLocation: 'My location',
+    noRiver: 'No river or canal mapped here, so this runs rain only.',
     loading: 'Loading the terrain…',
     loadError: (msg: string) => `Couldn't load the terrain: ${msg}`,
     live: {
@@ -1078,6 +1104,8 @@ export const en = {
       asOf: (time: string) => `as of ${time}`,
       on: 'Live',
       off: 'Off',
+      riverRef: (name: string, over: number) => `${name}: ${Math.abs(over).toFixed(2)} m ${over >= 0 ? 'over' : 'below'} the bank`,
+      noGauge: 'No gauge chosen: rain only',
     },
     scenario: {
       title: 'Scenario',
@@ -1093,6 +1121,8 @@ export const en = {
       p1Rise: 'River rising',
       perHour: 'm per hour',
       useLive: 'Use live',
+      headStart: 'River level against the bank at the start',
+      headHint: '0 is level with the bank: above it the river spills where the ground lets it.',
     },
     run: 'Run',
     pause: 'Pause',
@@ -1108,6 +1138,7 @@ export const en = {
       rainNow: 'Rain now',
       needs: 'Jaidee needs in flooded streets',
       needsNone: 'None so far',
+      headNow: 'River against the bank now',
     },
     legend: {
       depth: 'Water depth',
@@ -1145,12 +1176,12 @@ export const en = {
       body: [
         'The water moves by the shallow water (Saint-Venant) equations in their local inertial form, the method of the LISFLOOD-FP model, on a 36 m grid over the city, in your browser.',
         'The ground is SRTM satellite terrain with roofs and trees filtered out. In town it can be a few metres out, so read depths as a guide to which streets flood first, not as exact figures.',
-        'The Ping is held at P.1 level minus 3.7 m above its banks all along the city, so it starts to spill where the terrain lets it once P.1 passes its critical level. The river does not run out of water, so long runs show the most a level can flood.',
+        'Rivers and canals come from OpenStreetMap. Each channel takes the height of the land beside it as its bank, and is held at that bank plus how far the chosen gauge is above (or below) its own bank, so it starts to spill where the terrain lets it. The river does not run out of water, so long runs show the most a level can flood. The sea takes whatever reaches it.',
         'There is no storm drain network in the model yet (no SWMM): drains are one figure, in mm per hour, taken from any flooded cell. Rain falls evenly on the whole area.',
         'Before using it for real decisions, check it against a flood that happened, such as October 2024.',
       ],
       sources:
-        'Data: Thaiwater (river and rain gauges, RID and others), Open-Meteo (rain forecast), Terrain Tiles on AWS (SRTM), OpenStreetMap via OpenFreeMap (buildings, the Ping River).',
+        'Data: RID and HII gauges (via RID SWOC and Thaiwater), Open-Meteo (rain forecast), Terrain Tiles on AWS (SRTM), OpenStreetMap via OpenFreeMap (buildings, rivers, canals, sea).',
     },
   },
 }

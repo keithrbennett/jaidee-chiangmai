@@ -7,8 +7,9 @@ import type { Grid } from './grid'
  *
  * Inputs per step: rain on every land cell, a drainage loss standing in for the storm drains (we have
  * no pipe network, so no SWMM yet), and the river. River cells are a fixed-level boundary: they hold
- * water above the bank crest equal to how far P.1 is above its critical level, so the Ping spills where
- * the terrain lets it and takes water back where the town is higher than the river.
+ * water above the bank crest equal to how far the reference gauge is above its bank, so the river spills
+ * where the terrain lets it and takes water back where the town is higher than the river. The sea takes
+ * whatever reaches it.
  *
  * Grid edges let water flow out freely.
  */
@@ -18,7 +19,7 @@ export interface StepInputs {
   rain: number
   /** Storm-drain and soak-away capacity, mm per hour, taken from any land cell holding water. */
   drain: number
-  /** Height of the river above its bank crest, m (P.1 level − 3.7 m). Negative means no spill. */
+  /** Height of the river above its bank crest, m (the reference gauge's level − its bank). Negative means no spill. */
   riverHead: number
 }
 
@@ -70,7 +71,7 @@ export class FloodSolver {
 
   /** Advance by one stable time step (at most `maxDt` seconds). Returns the step taken. */
   step(inputs: StepInputs, maxDt = MAX_DT): number {
-    const { nx, ny, dx, z, river } = this.grid
+    const { nx, ny, dx, z, river, sea } = this.grid
     const { h, qx, qy } = this
     const riverDepth = Math.max(0, inputs.riverHead)
     const dt = Math.min(maxDt, MAX_DT, (ALPHA * dx) / Math.sqrt(G * Math.max(this.hmax, riverDepth, 0.01)))
@@ -127,6 +128,10 @@ export class FloodSolver {
           h[k] = riverDepth
           continue
         }
+        if (sea[k]) {
+          h[k] = 0
+          continue
+        }
         const fx = j * (nx + 1) + i
         const net = (qx[fx] - qx[fx + 1] + qy[k] - qy[k + nx]) * (dt / dx)
         let d = h[k] + net + rain
@@ -141,13 +146,13 @@ export class FloodSolver {
   }
 
   stats(): SimStats {
-    const { river, dx } = this.grid
+    const { river, sea, lake, dx } = this.grid
     // Median from a 1 cm histogram: one pass, no sorting of 100 000+ values five times a second.
     const bins = new Uint32Array(1001)
     let wet = 0
     for (let k = 0; k < this.h.length; k++) {
       const d = this.h[k]
-      if (river[k] || d < FLOODED_DEPTH) continue
+      if (river[k] || sea[k] || lake[k] || d < FLOODED_DEPTH) continue
       wet++
       bins[Math.min(1000, Math.round(d * 100))]++
     }

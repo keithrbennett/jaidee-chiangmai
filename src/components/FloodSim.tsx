@@ -1,8 +1,9 @@
 import maplibregl, { type Map as MlMap, type MapGeoJSONFeature } from 'maplibre-gl'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { PROVINCES } from '../data/provinces'
 import { useI18n, type Lang, type Messages } from '../i18n'
 import { formatObserved } from '../lib/conditions'
-import { P1, isRidGauge, useFloodFeeds } from '../lib/flood/feeds'
+import { useFloodFeeds } from '../lib/flood/feeds'
 import {
   DEPTH_CLASSES,
   GAUGE_COLORS,
@@ -19,30 +20,96 @@ import { FLOODED_DEPTH } from '../lib/flood/solver'
 import { mapStyle, type MapLang } from '../lib/map/style'
 import type { Frame, FromWorker, Scenario, ToWorker } from '../lib/flood/sim.worker'
 import type { Grid } from '../lib/flood/grid'
-import { href } from '../lib/router'
-import { useApi, type NeedCard } from '../lib/api'
+import type { Province } from '../data/provinces'
+import { HAZARD } from '../lib/alerts'
+import { href, navigate } from '../lib/router'
+import { provinceName, useGeolocation } from '../lib/ui'
+import { ProvinceSearch } from './kit'
+import { useApi, type Alert, type NeedCard } from '../lib/api'
 import { useResolvedTheme } from '../lib/theme'
 import { Icon } from './Icon'
-import { Button, Card, Pill, ScreenTitle } from './ui'
+import { Button, Card, Pill } from './ui'
 
-/** The modelled area: Chiang Mai city on both banks of the Ping, from Ring Road 3 in the north to Saraphi's edge. */
-const BOUNDS = { west: 98.95, south: 18.72, east: 99.05, north: 18.87 }
+/** Half the side of the modelled square, in degrees of latitude (about 13 km across: ~130 000 cells of 36 m). */
+const HALF = 0.06
 const ZOOM = 12
 const SPEEDS = [60, 600, 3600]
 const RAIN_PRESETS = [10, 30, 60, 100]
 const WALK_STEP_M = 15
 const WALK_TURN_DEG = 15
 
-type GridMeta = Omit<Grid, 'z' | 'river'>
+type GridMeta = Omit<Grid, 'z' | 'river' | 'sea' | 'lake'>
 type NeedPoint = { id: string; lat: number; lng: number; title: string; atRisk: boolean; depth: number }
 
-/** The flood simulator page. Loaded on demand, so MapLibre only downloads when someone opens it. */
-export default function FloodSim() {
+/**
+ * The flood simulator page, for any province: #/flood asks which, #/flood/<slug> runs it. Loaded on demand,
+ * so MapLibre only downloads when someone opens it.
+ */
+export default function FloodSim({ province }: { province?: Province }) {
+  return province ? <Simulator key={province.code} province={province} /> : <FloodPicker />
+}
+
+/** Which province to simulate: search, or one of those with flood alerts now. */
+function FloodPicker() {
+  const { m, lang } = useI18n()
+  const f = m.flood
+  const alerts = useApi<Alert[]>('/alerts', 0)
+  const flooded = [...new Set((alerts.data ?? []).filter((a) => a.hazard === 'flood' && a.level >= 2).sort((a, b) => b.level - a.level).flatMap((a) => a.provinces))].slice(0, 12)
+  const go = (p: Province) => navigate({ name: 'flood', province: p })
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 overflow-y-auto px-4 py-8 md:px-6">
+      <header className="rise">
+        <h1 className="text-[34px] font-bold leading-tight md:text-[44px]">{f.title}</h1>
+        <p className="mt-2 text-lg text-muted">{f.pick.sub}</p>
+      </header>
+      <div className="rise max-w-md" style={{ '--i': 1 } as CSSProperties}>
+        <ProvinceSearch onPick={go} autoFocus />
+      </div>
+      {flooded.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-[19px] font-bold">
+            <span className="grid h-7 w-7 place-items-center rounded-[8px] text-white" style={{ background: HAZARD.flood.color }}>
+              <Icon name="flood" size={16} />
+            </span>
+            {f.pick.flooding}
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {flooded.map((code) => {
+              const p = PROVINCES.find((x) => x.code === code)
+              return p ? (
+                <button key={code} onClick={() => go(p)} className="press inline-flex min-h-11 items-center rounded-full bg-card px-4 font-semibold ring-1 ring-line/70 hover:ring-go/40">
+                  {provinceName(p, lang)}
+                </button>
+              ) : null
+            })}
+          </div>
+        </section>
+      )}
+      <p className="text-[15px] text-muted">{f.pick.note}</p>
+    </div>
+  )
+}
+
+function Simulator({ province }: { province: Province }) {
   const { m, lang } = useI18n()
   const f = m.flood
   const theme = useResolvedTheme()
   const needsApi = useApi<NeedCard[]>('/needs')
-  const { feeds, failed } = useFloodFeeds()
+  const { feeds, failed } = useFloodFeeds(province.code)
+  const geo = useGeolocation()
+  // Where to simulate: a gauge (by code), the city centre, or a place the person chose.
+  const [spotCode, setSpotCode] = useState<string | null>(null)
+  const [mine, setMine] = useState<[number, number] | null>(null)
+  const spot = spotCode === 'city' || spotCode === 'me' ? null : (feeds?.spots.find((s) => s.code === spotCode) ?? feeds?.spots[0] ?? null)
+  const centre: [number, number] | null = !feeds && !failed ? null : spotCode === 'me' && mine ? mine : spot ? [spot.lng, spot.lat] : (feeds?.city ?? province.center)
+  const bounds = useMemo(() => {
+    if (!centre) return null
+    const dLng = HALF / Math.cos((centre[1] * Math.PI) / 180)
+    return { west: centre[0] - dLng, east: centre[0] + dLng, south: centre[1] - HALF, north: centre[1] + HALF }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centre?.[0], centre?.[1]])
+  const boundsKey = bounds ? `${bounds.west.toFixed(4)},${bounds.south.toFixed(4)}` : ''
+  const [waterFound, setWaterFound] = useState(true)
 
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MlMap | null>(null)
@@ -54,54 +121,59 @@ export default function FloodSim() {
   // Latest values for map callbacks that outlive a render (style reloads, clicks, key handlers).
   const latest = useRef({ grid, frame, feeds, needs: [] as NeedPoint[], theme, popup: f.popup, lang, walking: false })
 
-  const p1Live = feeds?.gauges?.find((g) => g.code === P1.code) ?? null
-  const critical = p1Live?.critical ?? P1.critical
   const [rainMode, setRainMode] = useState<'manual' | 'forecast'>('manual')
   const [rainManual, setRainManual] = useState(60)
   const [drain, setDrain] = useState(20)
-  const [p1Start, setP1Start] = useState<number | null>(null)
-  const [p1Rise, setP1Rise] = useState(0)
+  const [headStartSet, setHeadStart] = useState<number | null>(null)
+  const [headRise, setHeadRise] = useState(0)
   const [speed, setSpeed] = useState(600)
   const [running, setRunning] = useState(false)
   const [walking, setWalking] = useState(false)
   const [here, setHere] = useState<ReturnType<typeof sampleAt>>(null)
 
-  // Start from the live P.1 reading once it arrives (until the person moves the slider).
-  const startLevel = p1Start ?? p1Live?.level ?? 1
+  // Start from the gauge's live reading (until the person moves the slider). Without a gauge: 2 m below the bank.
+  const headStart = headStartSet ?? Math.max(-6, Math.min(3, spot?.over ?? -2))
   const forecastRain = useMemo(() => (feeds?.forecast ?? []).map((h) => h.mm), [feeds])
 
-  // Worker: build the grid once, then stream frames.
+  // Worker: build the grid for the area, then stream frames. A new area means a new worker.
   useEffect(() => {
+    if (!bounds) return
+    setGrid(null)
+    setFrame(null)
+    setError(null)
+    setRunning(false)
     const worker = new Worker(new URL('../lib/flood/sim.worker.ts', import.meta.url), { type: 'module' })
     workerRef.current = worker
     worker.onmessage = (e: MessageEvent<FromWorker>) => {
       const msg = e.data
-      if (msg.type === 'ready') setGrid({ meta: msg.grid, z: msg.z })
-      else if (msg.type === 'frame') setFrame(msg)
+      if (msg.type === 'ready') {
+        setGrid({ meta: msg.grid, z: msg.z })
+        setWaterFound(msg.waterFound)
+      } else if (msg.type === 'frame') setFrame(msg)
       else setError(msg.message)
     }
     worker.onerror = (e) => setError(e.message)
-    worker.postMessage({ type: 'init', bounds: BOUNDS, zoom: ZOOM, p1: P1 } satisfies ToWorker)
+    worker.postMessage({ type: 'init', bounds, zoom: ZOOM } satisfies ToWorker)
     return () => worker.terminate()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boundsKey])
 
   useEffect(() => {
     if (!grid) return
     const scenario: Scenario = {
       rain: rainMode === 'forecast' ? (forecastRain.length ? forecastRain : [0]) : [rainManual],
       drain,
-      p1Start: startLevel,
-      p1Rise,
-      p1Critical: critical,
+      headStart,
+      headRise,
       speed,
       running,
     }
     workerRef.current?.postMessage({ type: 'scenario', scenario } satisfies ToWorker)
-  }, [grid, rainMode, forecastRain, rainManual, drain, startLevel, p1Rise, critical, speed, running])
+  }, [grid, rainMode, forecastRain, rainManual, drain, headStart, headRise, speed, running])
 
   // Map: created once; layers come back after every style switch (light / dark).
   useEffect(() => {
-    const map = createFloodMap(mapEl.current!, latest.current.theme, latest.current.lang as MapLang)
+    const map = createFloodMap(mapEl.current!, latest.current.theme, latest.current.lang as MapLang, province.center)
     mapRef.current = map
     map.on('click', (e) => {
       const hit = map.queryRenderedFeatures(e.point, { layers: ['needs', 'gauges', 'rain'].filter((l) => map.getLayer(l)) })[0]
@@ -117,7 +189,14 @@ export default function FloodSim() {
     }
     return () => map.remove()
     // Made once: the theme is applied by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // The camera follows the modelled area.
+  useEffect(() => {
+    if (centre) mapRef.current?.jumpTo({ center: centre, zoom: 12.7 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boundsKey])
 
   // Whether our layers are on the current style. (Not map.isStyleLoaded(): that stays false while any tile
   // is still loading, so updates gated on it get dropped on a slow connection.)
@@ -254,11 +333,11 @@ export default function FloodSim() {
 
   // Live summaries.
   const inTown = (p: { lat: number; lng: number }) =>
-    p.lat >= BOUNDS.south && p.lat <= BOUNDS.north && p.lng >= BOUNDS.west && p.lng <= BOUNDS.east
+    !!bounds && p.lat >= bounds.south && p.lat <= bounds.north && p.lng >= bounds.west && p.lng <= bounds.east
   const townRain = (feeds?.rain ?? []).filter(inTown)
   const rain1h = Math.max(0, ...townRain.map((r) => r.rain1h ?? 0))
   const rain24h = Math.max(0, ...townRain.map((r) => r.rain24h ?? 0))
-  const sensors = (feeds?.gauges ?? []).filter((g) => !isRidGauge(g) && g.levelMsl !== null)
+  const sensors = (feeds?.gauges ?? []).filter((g) => inTown(g) && g.levelMsl !== null)
   const time = frame?.time ?? 0
   const hours = Math.floor(time / 3600)
   const minutes = Math.floor((time % 3600) / 60)
@@ -267,19 +346,51 @@ export default function FloodSim() {
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <aside className="order-2 min-h-0 flex-1 overflow-y-auto md:order-1 md:w-[420px] md:flex-none md:border-r md:border-line">
         <div className="flex flex-col gap-5 p-5">
-          <ScreenTitle sub={f.sub}>{f.title}</ScreenTitle>
+          <div>
+            <a href={href({ name: 'flood' })} className="text-[15px] font-semibold text-muted hover:text-link">
+              {f.title} · {m.province.change}
+            </a>
+            <h1 className="text-[30px] font-bold leading-tight">{provinceName(province, lang)}</h1>
+            <p className="mt-1 text-[15px] text-muted">{f.sub}</p>
+          </div>
           <div>
             <Pill tone="urgent" icon="alert">
               {f.modelBadge}
             </Pill>
           </div>
+          <Field label={f.spot}>
+            <select
+              className="min-h-11 w-full rounded-[12px] border border-line bg-page px-3"
+              value={spotCode === 'city' || spotCode === 'me' ? spotCode : (spot?.code ?? 'city')}
+              onChange={async (e) => {
+                const v = e.target.value
+                if (v === 'me') {
+                  const p = await geo.locate()
+                  if (!p) return
+                  setMine(p)
+                }
+                setHeadStart(null)
+                setSpotCode(v)
+              }}
+            >
+              {(feeds?.spots ?? []).slice(0, 40).map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.name}
+                  {s.river ? ` · ${s.river}` : ''} ({s.km} km)
+                </option>
+              ))}
+              <option value="city">{f.city}</option>
+              <option value="me">{f.myLocation}</option>
+            </select>
+            {!waterFound && grid && <p className="text-[14px] text-[#a64b00]">{f.noRiver}</p>}
+          </Field>
 
           <Card className="flex flex-col gap-3 !p-5">
             <h3 className="text-[19px] font-semibold">{f.live.title}</h3>
             {failed && !feeds && <p className="text-muted">{f.live.unavailable}</p>}
-            <LiveRow icon="flood" title={f.live.river} live={!!p1Live}>
-              {p1Live?.level != null ? f.live.riverP1(p1Live.level.toFixed(2), critical.toFixed(1)) : '–'}
-              {p1Live && <span className="text-faint"> · {f.live.asOf(formatObserved(p1Live.observedAt, lang))}</span>}
+            <LiveRow icon="flood" title={f.live.river} live={!!spot}>
+              {spot ? f.live.riverRef(`${spot.code} ${spot.name}`, spot.over) : f.live.noGauge}
+              {spot && <span className="text-faint"> · {f.live.asOf(formatObserved(spot.observedAt, lang))}</span>}
             </LiveRow>
             <LiveRow icon="haze" title={f.live.rain} live={townRain.length > 0}>
               {townRain.length ? (
@@ -335,20 +446,21 @@ export default function FloodSim() {
             </Field>
 
             <Field
-              label={f.scenario.p1Start}
+              label={f.scenario.headStart}
+              hint={f.scenario.headHint}
               action={
-                p1Live?.level != null && p1Start !== null ? (
-                  <button className="text-sm text-link" onClick={() => setP1Start(null)}>
+                spot && headStartSet !== null ? (
+                  <button className="text-sm text-link" onClick={() => setHeadStart(null)}>
                     {f.scenario.useLive}
                   </button>
                 ) : undefined
               }
             >
-              <Slider label={f.scenario.p1Start} value={startLevel} min={0} max={7} step={0.05} onChange={setP1Start} unit="m" digits={2} mark={critical} />
+              <Slider label={f.scenario.headStart} value={headStart} min={-6} max={3} step={0.05} onChange={setHeadStart} unit="m" digits={2} mark={0} />
             </Field>
 
             <Field label={f.scenario.p1Rise}>
-              <Slider label={f.scenario.p1Rise} value={p1Rise} min={-0.2} max={0.5} step={0.01} onChange={setP1Rise} unit={f.scenario.perHour} digits={2} />
+              <Slider label={f.scenario.p1Rise} value={headRise} min={-0.2} max={0.5} step={0.01} onChange={setHeadRise} unit={f.scenario.perHour} digits={2} />
             </Field>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -384,7 +496,7 @@ export default function FloodSim() {
             <dl className="grid grid-cols-2 gap-3">
               <Stat label={f.results.flooded} value={`${(frame?.stats.floodedKm2 ?? 0).toFixed(2)} km²`} />
               <Stat label={f.results.typicalDepth} value={`${(frame?.stats.typicalDepth ?? 0).toFixed(2)} m`} />
-              <Stat label={f.results.p1Now} value={`${(frame?.p1Level ?? startLevel).toFixed(2)} m`} urgent={(frame?.p1Level ?? startLevel) >= critical} />
+              <Stat label={f.results.headNow} value={signed(frame?.head ?? headStart)} urgent={(frame?.head ?? headStart) >= 0} />
               <Stat label={f.results.rainNow} value={`${frame?.rain ?? 0} ${f.scenario.mmPerHour}`} />
             </dl>
             <div>
@@ -470,7 +582,7 @@ export default function FloodSim() {
             <div className="pointer-events-none flex flex-col gap-1 rounded-[14px] bg-card/90 px-4 py-2 text-[15px] shadow backdrop-blur">
               <span className="font-semibold tabular-nums">{f.clock(hours, minutes)}</span>
               <span className="text-muted tabular-nums">
-                P.1 {(frame?.p1Level ?? startLevel).toFixed(2)} m · {frame?.rain ?? 0} {f.scenario.mmPerHour}
+                {spot?.code ?? f.city} {signed(frame?.head ?? headStart)} · {frame?.rain ?? 0} {f.scenario.mmPerHour}
               </span>
             </div>
             <Button icon={walking ? 'back' : 'users'} variant={walking ? 'ask' : 'go'} onClick={() => setWalking(!walking)}>
@@ -529,6 +641,9 @@ function buildPopup(feature: MapGeoJSONFeature, t: Messages['flood']['popup'], l
   }
   return root
 }
+
+/** "+0.35 m" / "−1.20 m": over or under the bank. */
+const signed = (m: number) => `${m >= 0 ? '+' : '−'}${Math.abs(m).toFixed(2)} m`
 
 function WalkHud({ here }: { here: ReturnType<typeof sampleAt> }) {
   const { m } = useI18n()

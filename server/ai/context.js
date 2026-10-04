@@ -140,6 +140,15 @@ function matchPlace(raw, provinceHint) {
     })
 }
 
+/**
+ * The provincial capital, roughly: the middle of its sub-districts in the "เมือง" district (Phra Nakhon in
+ * Bangkok). Good enough to centre a city view or pick the nearest river gauge.
+ */
+export function cityCentre(code) {
+  const d = places().find((x) => x.kind === 'district' && x.province === code && (code === '10' ? x.th === 'พระนคร' : x.th.startsWith('เมือง')))
+  return d ? [d.lng, d.lat] : byCode.get(code)?.center ?? null
+}
+
 /** Where a point is, in words: { province, district, tambon } names. */
 export function placeAt(lng, lat) {
   const code = provinceAt(lng, lat)

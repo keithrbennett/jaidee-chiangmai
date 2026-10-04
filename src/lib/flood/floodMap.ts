@@ -10,7 +10,7 @@ import { TERRAIN_SOURCE, mapStyle, type MapLang } from '../map/style'
  * and in street walk mode the water as 3D blocks around you.
  */
 
-type GridMeta = Omit<Grid, 'z' | 'river'>
+type GridMeta = Omit<Grid, 'z' | 'river' | 'sea' | 'lake'>
 
 /** Depth classes for the water, m, with their colours. Shared with the legend on the page. */
 export const DEPTH_CLASSES: { min: number; color: [number, number, number] }[] = [
@@ -34,11 +34,11 @@ export const GAUGE_COLORS = { over: '#ff3b30', near: '#ff9f0a', ok: '#30d158', n
 const WALK_RADIUS_M = 450
 const rgb = ([r, g, b]: [number, number, number]) => `rgb(${r},${g},${b})`
 
-export function createFloodMap(container: HTMLElement, theme: 'light' | 'dark', lang: MapLang) {
+export function createFloodMap(container: HTMLElement, theme: 'light' | 'dark', lang: MapLang, center: [number, number]) {
   const map = new maplibregl.Map({
     container,
     style: mapStyle(theme, lang),
-    center: [99.0, 18.788],
+    center,
     zoom: 12.7,
     pitch: 55,
     bearing: -20,

@@ -66,7 +66,7 @@ export default function App() {
         {route.name === 'flood' && (
           <Suspense fallback={<p className="p-6 text-muted">{m.flood.loading}</p>}>
             <div className="flex h-[calc(100dvh-7.5rem)] min-h-0 md:h-[calc(100dvh-6.5rem)]">
-              <FloodSim />
+              <FloodSim province={route.province} />
             </div>
           </Suspense>
         )}

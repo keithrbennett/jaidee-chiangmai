@@ -7,6 +7,7 @@ import { feeds, isProvince } from '../feeds.js'
 import { hazards } from '../hazards.js'
 import { provinceContacts } from '../contacts.js'
 import { alerts } from '../push.js'
+import { cityCentre } from '../ai/context.js'
 import { PROVINCES } from '../lib/geo.js'
 import { route, sendJson } from '../lib/util.js'
 
@@ -145,17 +146,27 @@ data.get(
   }),
 )
 
-// The flood simulator (Chiang Mai): gauges and rain in the province, and the city's hourly forecast.
-data.get(
-  '/flood',
+// The flood simulator: a province's gauges and rain, its hourly forecast, and where to simulate. Spots are
+// gauges with a bank level (the simulator holds the river at bank + how far the gauge is over it), nearest
+// the provincial city first; with none, the city itself (rain only).
+const floodFeed = (code) =>
   route(async (req, res) => {
+    const c = code ?? req.params.code
+    if (!isProvince(c)) return res.status(404).json({ error: 'no_such_province' })
     const [stations, rain, forecast] = await Promise.all([feeds.stations.get(), feeds.rain.get(), feeds.forecast.get()])
+    const gauges = (stations ?? []).filter(inProvince(c))
+    const city = cityCentre(c)
+    const spots = gauges
+      .filter((g) => g.over !== null)
+      .map((g) => ({ code: g.code, name: g.name, river: g.river, lng: g.lng, lat: g.lat, over: g.over, observedAt: g.observedAt, km: Math.round(km(city, [g.lng, g.lat]) * 10) / 10 }))
+      .sort((a, b) => a.km - b.km)
     sendJson(req, res, {
-      gauges: stations ? stations.filter(inProvince('50')) : null,
-      rain: rain
-        ? rain.filter((r) => r[4] === '50').map((r) => ({ lng: r[0], lat: r[1], rain24h: r[2], rain1h: r[3], name: r[5], agency: r[6], observedAt: r[7] }))
-        : null,
-      forecast: forecast?.['50']?.hourly.map(([time, mm]) => ({ time, mm })) ?? null,
+      gauges,
+      rain: (rain ?? []).filter((r) => r[4] === c).map((r) => ({ lng: r[0], lat: r[1], rain24h: r[2], rain1h: r[3], name: r[5], agency: r[6], observedAt: r[7] })),
+      forecast: forecast?.[c]?.hourly.map(([time, mm]) => ({ time, mm })) ?? null,
+      city,
+      spots,
     })
-  }),
-)
+  })
+data.get('/flood', floodFeed('50'))
+data.get('/flood/:code', floodFeed())

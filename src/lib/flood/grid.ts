@@ -1,6 +1,6 @@
 /**
  * The simulation grid: one cell per Web Mercator pixel of the terrain tiles at `zoom` (about 36 m in
- * Chiang Mai at zoom 12, which is also the real resolution of the SRTM data behind those tiles).
+ * Thailand at zoom 12, which is also the real resolution of the SRTM data behind those tiles).
  * Aligning cells with tile pixels means the depth raster drops straight onto the map with no resampling.
  *
  * Everything here is plain arithmetic on typed arrays, so it runs in the worker and in Node tests alike.
@@ -24,37 +24,34 @@ export interface Grid {
   py0: number
   /** Ground elevation in DEM metres, row-major from the north-west corner. River cells hold the bank crest. */
   z: Float32Array
-  /** 1 for river channel cells. */
+  /** 1 for river and canal channel cells: held at bank + the river head. */
   river: Uint8Array
+  /** 1 for sea: water that reaches it leaves the model. */
+  sea: Uint8Array
+  /** 1 for lakes, ponds and reservoirs: already water, so not counted or drawn as flooding. */
+  lake: Uint8Array
 }
 
-/** The river channel and its reference gauge. */
-export interface RiverCalibration {
-  /** Ping River centre line, upstream first, [lng, lat]. */
-  line: [number, number][]
-  /** Reference gauge (P.1) and the real height of its lowest bank, m above mean sea level. */
-  ref: { lat: number; lng: number; bankMsl: number }
-}
-
-/** How the river was fitted to the terrain, for tests and the notes on the page. */
-export interface RiverFit {
-  /** Bank height the DEM gives at the reference gauge minus its real bank height. Informational. */
-  bias: number
-  riverCells: number
+/** Water from the map, in grid cell coordinates (x = pixel − px0, y = pixel − py0). */
+export interface WaterShapes {
+  /** River and canal centre lines. */
+  lines: [number, number][][]
+  /** River areas, sea and lakes as polygons: [outer ring, ...holes]. */
+  rivers: [number, number][][][]
+  sea: [number, number][][][]
+  lakes: [number, number][][][]
 }
 
 const TILE = 256
 const EARTH_CIRCUMFERENCE = 40075016.686
-/** Cells whose centre is this close to the centre line are channel. Over half a cell diagonal, so the channel has no gaps. */
+/** Cells whose centre is this close to a river or canal line are channel. Over half a cell diagonal, so there are no gaps. */
 const CHANNEL_HALF_WIDTH_M = 30
-/** Banks are read per stretch of river this long… */
-const BANK_STRETCH_M = 250
-/** …from land within this distance of the channel… */
+/** Banks are read from land within this distance of each channel cell… */
 const BANK_RADIUS_M = 110
 /** …taking this percentile (low, so a row of buildings on the bank doesn't count as levee)… */
 const BANK_PERCENTILE = 0.3
-/** …and averaging over this many stretches either side. */
-const BANK_SMOOTH = 2
+/** …then averaged along the channel network this many times (about 350 m either way). */
+const BANK_SMOOTH_PASSES = 10
 /** Opening radius in cells for groundFromSurface (2 cells ≈ 70 m either side). */
 const OPEN_RADIUS = 2
 
@@ -110,29 +107,58 @@ export function cellCenter(g: Pick<Grid, 'px0' | 'py0' | 'nx' | 'zoom'>, k: numb
   return [pxToLng(g.px0 + i + 0.5, g.zoom), pxToLat(g.py0 + j + 0.5, g.zoom)]
 }
 
-/**
- * Mark the river channel and set each channel cell to the height of its banks, in DEM terms: a low
- * percentile of the land within BANK_RADIUS_M of the channel at that point, smoothed along the river.
- * Taking the banks from the terrain beside the river (rather than one straight line from the gauge)
- * keeps the floodplain from sitting metres below the river where the DEM drifts.
- *
- * The flood model then holds the river at `crest + (P.1 level − critical level)`, so by construction the
- * Ping starts to spill at the gauge's real critical level, and the terrain decides where the water goes.
- * Mutates `z` and `river`.
- */
-export function fitRiver(grid: Grid, cal: RiverCalibration): RiverFit {
-  const { nx, ny, dx, zoom, px0, py0, z, river } = grid
-  const chain = new Float32Array(nx * ny).fill(NaN)
-  const best = new Float32Array(nx * ny).fill(Infinity)
-  const pts = cal.line.map(([lng, lat]) => [lngToPx(lng, zoom) - px0, latToPx(lat, zoom) - py0])
-  const reach = CHANNEL_HALF_WIDTH_M / dx
+/** Lay the map's water onto the grid: river areas, sea and lakes filled, river and canal lines widened. */
+export function rasterizeWater(grid: Grid, w: WaterShapes) {
+  const { river, sea, lake, dx } = grid
+  for (const p of w.rivers) fillPolygon(grid, p, river)
+  for (const p of w.sea) fillPolygon(grid, p, sea)
+  for (const p of w.lakes) fillPolygon(grid, p, lake)
+  for (const line of w.lines) markLine(grid, line, CHANNEL_HALF_WIDTH_M / dx, river)
+  for (let k = 0; k < river.length; k++) {
+    // Where a river meets the sea, it is sea; a river through a lake is river.
+    if (sea[k]) river[k] = lake[k] = 0
+    else if (river[k]) lake[k] = 0
+  }
+}
 
-  let s0 = 0 // chainage at the start of the segment, metres
+/** Even–odd scanline fill of one polygon (outer ring and holes) by cell centres. */
+function fillPolygon(grid: Grid, rings: [number, number][][], mask: Uint8Array) {
+  const { nx, ny } = grid
+  let y0 = Infinity
+  let y1 = -Infinity
+  for (const r of rings) {
+    for (const [, y] of r) {
+      if (y < y0) y0 = y
+      if (y > y1) y1 = y
+    }
+  }
+  const xs: number[] = []
+  for (let j = Math.max(0, Math.floor(y0)); j <= Math.min(ny - 1, Math.ceil(y1)); j++) {
+    const cy = j + 0.5
+    xs.length = 0
+    for (const r of rings) {
+      for (let a = 0, b = r.length - 1; a < r.length; b = a++) {
+        const [xa, ya] = r[a]
+        const [xb, yb] = r[b]
+        if (ya > cy !== yb > cy) xs.push(xa + ((cy - ya) * (xb - xa)) / (yb - ya))
+      }
+    }
+    xs.sort((p, q) => p - q)
+    for (let q = 0; q + 1 < xs.length; q += 2) {
+      const i0 = Math.max(0, Math.ceil(xs[q] - 0.5))
+      const i1 = Math.min(nx - 1, Math.floor(xs[q + 1] - 0.5))
+      for (let i = i0; i <= i1; i++) mask[j * nx + i] = 1
+    }
+  }
+}
+
+/** Mark the cells within `reach` cells of a polyline. */
+function markLine(grid: Grid, pts: [number, number][], reach: number, mask: Uint8Array) {
+  const { nx, ny } = grid
   for (let p = 0; p + 1 < pts.length; p++) {
     const [ax, ay] = pts[p]
     const [bx, by] = pts[p + 1]
     const len2 = (bx - ax) ** 2 + (by - ay) ** 2
-    const len = Math.sqrt(len2)
     const i0 = Math.max(0, Math.floor(Math.min(ax, bx) - reach))
     const i1 = Math.min(nx - 1, Math.ceil(Math.max(ax, bx) + reach))
     const j0 = Math.max(0, Math.floor(Math.min(ay, by) - reach))
@@ -142,64 +168,77 @@ export function fitRiver(grid: Grid, cal: RiverCalibration): RiverFit {
         const cx = i + 0.5
         const cy = j + 0.5
         const t = len2 ? Math.max(0, Math.min(1, ((cx - ax) * (bx - ax) + (cy - ay) * (by - ay)) / len2)) : 0
-        const d = Math.hypot(cx - (ax + t * (bx - ax)), cy - (ay + t * (by - ay)))
-        const k = j * nx + i
-        if (d <= reach && d < best[k]) {
-          best[k] = d
-          chain[k] = s0 + t * len * dx
-          river[k] = 1
-        }
+        if (Math.hypot(cx - (ax + t * (bx - ax)), cy - (ay + t * (by - ay))) <= reach) mask[j * nx + i] = 1
       }
     }
-    s0 += len * dx
   }
+}
 
-  // Bank height per stretch of river: low percentile of the land within BANK_RADIUS_M of the channel.
-  const stretches = Math.ceil(s0 / BANK_STRETCH_M) + 1
-  const samples: number[][] = Array.from({ length: stretches }, () => [])
+/**
+ * Set each channel cell to the height of its banks, in DEM terms: a low percentile of the land within
+ * BANK_RADIUS_M, carried into wide rivers from their edges, then smoothed along the channel network. Taking
+ * the banks from the terrain beside the river keeps the floodplain from sitting metres below the river where
+ * the DEM drifts. The model then holds the river at `bank + head`, where head is how far the reference gauge
+ * is above (+) or below (−) its bank, so the river spills where the terrain lets it. Mutates `z`.
+ */
+export function fitBanks(grid: Grid): { channelCells: number } {
+  const { nx, ny, dx, z, river, sea, lake } = grid
+  const n = nx * ny
   const r = Math.ceil(BANK_RADIUS_M / dx)
-  for (let k = 0; k < nx * ny; k++) {
+  const crest = new Float32Array(n).fill(NaN)
+  const land = (k: number) => !river[k] && !sea[k] && !lake[k]
+  const buf: number[] = []
+  let channelCells = 0
+  for (let k = 0; k < n; k++) {
     if (!river[k]) continue
+    channelCells++
     const i = k % nx
     const j = (k - i) / nx
-    const bucket = samples[Math.floor(chain[k] / BANK_STRETCH_M)]
-    for (let v = Math.max(0, j - r); v <= Math.min(ny - 1, j + r); v++) {
-      for (let u = Math.max(0, i - r); u <= Math.min(nx - 1, i + r); u++) {
-        const n = v * nx + u
-        if (!river[n]) bucket.push(z[n])
+    buf.length = 0
+    for (let v = Math.max(0, j - r); v <= Math.min(ny - 1, j + r); v++)
+      for (let u = Math.max(0, i - r); u <= Math.min(nx - 1, i + r); u++) if (land(v * nx + u)) buf.push(z[v * nx + u])
+    if (buf.length) {
+      buf.sort((a, b) => a - b)
+      crest[k] = buf[Math.floor(buf.length * BANK_PERCENTILE)]
+    }
+  }
+  // The middle of a wide river (the Chao Phraya is 300 m) has no land in reach: take the nearest edge's value.
+  const queue: number[] = []
+  for (let k = 0; k < n; k++) if (river[k] && !Number.isNaN(crest[k])) queue.push(k)
+  for (let q = 0; q < queue.length; q++) {
+    const k = queue[q]
+    const i = k % nx
+    for (const nb of [k - 1, k + 1, k - nx, k + nx]) {
+      if (nb < 0 || nb >= n || (nb === k - 1 && i === 0) || (nb === k + 1 && i === nx - 1)) continue
+      if (river[nb] && Number.isNaN(crest[nb])) {
+        crest[nb] = crest[k]
+        queue.push(nb)
       }
     }
   }
-  const raw = samples.map((b) => {
-    if (!b.length) return NaN
-    b.sort((x, y) => x - y)
-    return b[Math.floor(b.length * BANK_PERCENTILE)]
-  })
-  // Fill gaps, then smooth along the river so one odd stretch doesn't make a hole in the bank.
-  for (let q = 0; q < raw.length; q++) if (Number.isNaN(raw[q])) raw[q] = raw[q - 1] ?? raw.find((x) => !Number.isNaN(x)) ?? 0
-  const crest = raw.map((_, q) => {
-    let sum = 0
-    let n = 0
-    for (let w = Math.max(0, q - BANK_SMOOTH); w <= Math.min(raw.length - 1, q + BANK_SMOOTH); w++) {
-      sum += raw[w]
-      n++
+  // Smooth along the network so one odd stretch doesn't make a hole in the bank.
+  const next = new Float32Array(n)
+  for (let pass = 0; pass < BANK_SMOOTH_PASSES; pass++) {
+    for (let k = 0; k < n; k++) {
+      if (!river[k] || Number.isNaN(crest[k])) continue
+      const i = k % nx
+      let sum = crest[k]
+      let cnt = 1
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const u = i + di
+          const nb = k + dj * nx + di
+          if ((di === 0 && dj === 0) || u < 0 || u >= nx || nb < 0 || nb >= n || !river[nb] || Number.isNaN(crest[nb])) continue
+          sum += crest[nb]
+          cnt++
+        }
+      }
+      next[k] = sum / cnt
     }
-    return sum / n
-  })
-  const crestAt = (s: number) => {
-    const f = Math.max(0, Math.min(crest.length - 1, s / BANK_STRETCH_M - 0.5))
-    const q = Math.floor(f)
-    return crest[q] + (crest[Math.min(q + 1, crest.length - 1)] - crest[q]) * (f - q)
+    for (let k = 0; k < n; k++) if (river[k] && !Number.isNaN(crest[k])) crest[k] = next[k]
   }
-
-  let riverCells = 0
-  for (let k = 0; k < nx * ny; k++) {
-    if (!river[k]) continue
-    riverCells++
-    z[k] = crestAt(chain[k])
-  }
-  const sRef = chainageOf(cal.line, cal.ref, zoom, dx)
-  return { bias: crestAt(sRef) - cal.ref.bankMsl, riverCells }
+  for (let k = 0; k < n; k++) if (river[k] && !Number.isNaN(crest[k])) z[k] = crest[k]
+  return { channelCells }
 }
 
 /**
@@ -231,31 +270,6 @@ function morph(src: Float32Array, nx: number, ny: number, radius: number, pick: 
     }
   }
   return out
-}
-
-/** Distance along the line (metres) of the point on it closest to `p`. */
-function chainageOf(line: [number, number][], p: { lat: number; lng: number }, zoom: number, dx: number) {
-  const px = lngToPx(p.lng, zoom)
-  const py = latToPx(p.lat, zoom)
-  let bestD = Infinity
-  let bestS = 0
-  let s0 = 0
-  for (let k = 0; k + 1 < line.length; k++) {
-    const ax = lngToPx(line[k][0], zoom)
-    const ay = latToPx(line[k][1], zoom)
-    const bx = lngToPx(line[k + 1][0], zoom)
-    const by = latToPx(line[k + 1][1], zoom)
-    const len2 = (bx - ax) ** 2 + (by - ay) ** 2
-    const t = len2 ? Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / len2)) : 0
-    const d = Math.hypot(px - (ax + t * (bx - ax)), py - (ay + t * (by - ay)))
-    const len = Math.sqrt(len2)
-    if (d < bestD) {
-      bestD = d
-      bestS = s0 + t * len * dx
-    }
-    s0 += len * dx
-  }
-  return bestS
 }
 
 /** Decode one Terrarium-encoded pixel (Mapzen / AWS Terrain Tiles) to metres. */

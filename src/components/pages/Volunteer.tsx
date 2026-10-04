@@ -1,9 +1,11 @@
 import type { Map as MlMap } from 'maplibre-gl'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { PROVINCES } from '../../data/provinces'
 import { useI18n } from '../../i18n'
 import { api, useApi, type NeedCard } from '../../lib/api'
 import { CATEGORY_ICONS } from '../../lib/categories'
+import type { IconName } from '../../lib/icons'
+import { openQuickReport } from '../../lib/report'
 import { addLayer, setSource } from '../../lib/map/layers'
 import { clickable } from '../../lib/map/popup'
 import { href, navigate, provinceByCode } from '../../lib/router'
@@ -19,15 +21,19 @@ const SAVED = 'jaidee.savedNeeds'
 
 export function VolunteerList() {
   const { m, lang } = useI18n()
+  const V = m.volunteer
   const needs = useApi<NeedCard[]>('/needs', 5 * 60_000)
   const [category, setCategory] = useState<string>('all')
+  const [view, setView] = useState<'all' | 'urgent' | 'near'>('all')
   const geo = useGeolocation()
   const [here, setHere] = useState<{ lat: number; lng: number } | null>(null)
   const mapRef = useRef<MlMap | null>(null)
-  const list = (needs.data ?? [])
-    .filter((n) => category === 'all' || n.category === category)
-    .sort((a, b) => Number(b.urgent) - Number(a.urgent) || (here ? km(here, a) - km(here, b) : b.verifiedAt - a.verifiedAt))
-  const categories = [...new Set((needs.data ?? []).map((n) => n.category))]
+  const all = needs.data ?? []
+  const list = all
+    .filter((n) => (category === 'all' || n.category === category) && (view !== 'urgent' || n.urgent))
+    .sort((a, b) => (view === 'near' && here ? km(here, a) - km(here, b) : Number(b.urgent) - Number(a.urgent) || b.verifiedAt - a.verifiedAt))
+  const categories = [...new Set(all.map((n) => n.category))]
+  const people = all.reduce((sum, n) => sum + (n.spots || 0), 0)
 
   const draw = useCallback(
     (map: MlMap) => {
@@ -56,85 +62,175 @@ export function VolunteerList() {
   }, [draw])
 
   return (
-    <div className="mx-auto w-full flex max-w-6xl flex-col gap-6 px-4 py-6 md:px-6">
-      <header className="flex flex-wrap items-end gap-3">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
+      <header className="rise flex flex-col gap-4 md:flex-row md:items-end">
         <div className="mr-auto max-w-2xl">
-          <h1 className="text-[34px] font-bold leading-tight">{m.volunteer.title}</h1>
-          <p className="mt-1 text-lg text-muted">{m.volunteer.sub}</p>
+          <h1 className="text-[34px] font-bold leading-tight md:text-[44px]">{V.title}</h1>
+          <p className="mt-2 text-lg text-muted">{V.sub}</p>
+          {all.length > 0 && (
+            <p className="mt-3 text-[18px]">
+              <b className="text-[#1f7a35] dark:text-[#30d158]">{V.countTasks(all.length)}</b>
+              <span className="text-muted"> · {V.countPeople(people)}</span>
+            </p>
+          )}
         </div>
-        <Button href={href({ name: 'post' })} icon="post" variant="ask">
-          {m.volunteer.post}
-        </Button>
-        <Button href={href({ name: 'tasks' })} icon="tasks" variant="secondary">
-          {m.volunteer.myTasks}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button href={href({ name: 'post' })} icon="post" variant="ask">
+            {V.post}
+          </Button>
+          <Button href={href({ name: 'tasks' })} icon="tasks" variant="secondary">
+            {V.myTasks}
+          </Button>
+        </div>
       </header>
-      <div className="flex flex-wrap items-center gap-2">
-        <Choices
-          options={[['all', m.volunteer.all], ...categories.map((c) => [c, m.categories[c as Category] ?? c] as [string, string])]}
-          value={category}
-          onChange={setCategory}
-        />
-        <button
-          onClick={async () => {
-            const p = await geo.locate()
-            if (p) setHere({ lng: p[0], lat: p[1] })
-          }}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 font-medium"
-        >
-          <Icon name="locate" size={18} /> {m.common.nearMe}
-        </button>
-      </div>
+
       {needs.loading ? (
         <Loading />
-      ) : list.length ? (
-        <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-          <ul className="flex flex-col gap-3">
-            {list.map((n) => (
-              <li key={n.id}>
-                <a href={href({ name: 'need', id: n.id })} className="flex gap-3 rounded-[18px] bg-card p-4 hover:shadow-[0_4px_20px_rgb(0_0_0/0.08)]">
-                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] text-white ${n.urgent ? 'bg-urgent' : 'bg-[#34c759]'}`}>
-                    <Icon name={CATEGORY_ICONS[n.category as Category] ?? 'heart'} size={24} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <b className="text-lg">{n.title}</b>
-                      {n.urgent && <Pill tone="urgent">{m.volunteer.urgent}</Pill>}
-                    </span>
-                    <span className="block text-muted">
-                      {n.place} · {n.when}
-                    </span>
-                    <span className="block text-sm text-faint">
-                      {m.volunteer.spots(n.spots)}
-                      {provinceByCode.get(n.province) && ` · ${provinceName(provinceByCode.get(n.province)!, lang)}`}
-                      {here && ` · ${m.volunteer.distance(m.common.km(km(here, n).toFixed(1)))}`}
-                    </span>
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-          <MapBox className="h-[60vh] min-h-[360px] lg:sticky lg:top-24">
-            <MapView
-              center={[100.6, 14.5]}
-              zoom={5}
-              pitch={35}
-              onMap={(map) => {
-                mapRef.current = map
-                clickable(map, ['jd-needs'])
-                map.on('click', 'jd-needs', (e) => {
-                  const id = e.features?.[0]?.properties?.id
-                  if (id) navigate({ name: 'need', id: String(id) })
-                })
-              }}
-              onStyle={(map) => drawRef.current(map)}
-            />
-          </MapBox>
-        </div>
+      ) : all.length === 0 ? (
+        <HelpNow />
       ) : (
-        <p className="rounded-[18px] bg-card p-6 text-lg text-muted">{m.volunteer.none}</p>
+        <>
+          <div className="flex flex-col gap-3">
+            <div role="group" className="flex self-start rounded-full bg-paper p-1">
+              {(['all', 'urgent', 'near'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={async () => {
+                    if (v === 'near' && !here) {
+                      const p = await geo.locate()
+                      if (!p) return
+                      setHere({ lng: p[0], lat: p[1] })
+                    }
+                    setView(v)
+                  }}
+                  aria-pressed={view === v}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold transition ${view === v ? 'bg-card text-ink shadow-sm' : 'text-muted'}`}
+                >
+                  {v === 'near' && <Icon name="locate" size={15} />}
+                  {v === 'all' ? V.all : v === 'urgent' ? V.urgent : V.near}
+                </button>
+              ))}
+            </div>
+            {categories.length > 1 && (
+              <Choices
+                options={[['all', V.allKinds], ...categories.map((c) => [c, m.categories[c as Category] ?? c] as [string, string])]}
+                value={category}
+                onChange={setCategory}
+              />
+            )}
+          </div>
+          <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+            {list.length ? (
+              <ul className="flex flex-col gap-3">
+                {list.map((n, i) => {
+                  const prov = provinceByCode.get(n.province)
+                  return (
+                    <li key={n.id} className="rise" style={{ '--i': Math.min(i, 8) } as CSSProperties}>
+                      <a href={href({ name: 'need', id: n.id })} className="press lift flex gap-4 rounded-[22px] bg-card p-4">
+                        <span className="flex w-14 shrink-0 flex-col items-center gap-1.5">
+                          <span className={`grid h-12 w-12 place-items-center rounded-full text-white ${n.urgent ? 'bg-urgent' : 'bg-[#34c759]'}`}>
+                            <Icon name={CATEGORY_ICONS[n.category as Category] ?? 'heart'} size={24} />
+                          </span>
+                          {n.urgent && <span className="text-[11px] font-bold uppercase tracking-wide text-urgent">{V.urgent}</span>}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <b className="block text-[18px] leading-snug">{n.title}</b>
+                          <span className="mt-1 flex items-center gap-1.5 text-[15px] text-muted">
+                            <Icon name="pin" size={15} className="shrink-0" />
+                            <span className="truncate">
+                              {n.place}
+                              {prov && ` · ${provinceName(prov, lang)}`}
+                            </span>
+                          </span>
+                          {n.when && (
+                            <span className="mt-0.5 flex items-center gap-1.5 text-[15px] text-muted">
+                              <Icon name="clock" size={15} className="shrink-0" />
+                              {n.when}
+                              {n.hours ? ` · ${m.common.hours(n.hours)}` : ''}
+                            </span>
+                          )}
+                          <span className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-go-soft px-2.5 py-0.5 text-[13px] font-semibold text-go">
+                              <Icon name="users" size={14} /> {V.spots(n.spots)}
+                            </span>
+                            {here && <span className="text-[13px] text-faint">{V.distance(m.common.km(km(here, n).toFixed(1)))}</span>}
+                          </span>
+                        </span>
+                      </a>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="rounded-[18px] bg-card p-6 text-muted">{V.noneFiltered}</p>
+            )}
+            <MapBox className="h-[60vh] min-h-[360px] lg:sticky lg:top-24">
+              <MapView
+                center={[100.6, 14.5]}
+                zoom={5}
+                pitch={35}
+                onMap={(map) => {
+                  mapRef.current = map
+                  clickable(map, ['jd-needs'])
+                  map.on('click', 'jd-needs', (e) => {
+                    const id = e.features?.[0]?.properties?.id
+                    if (id) navigate({ name: 'need', id: String(id) })
+                  })
+                }}
+                onStyle={(map) => drawRef.current(map)}
+              />
+            </MapBox>
+          </div>
+        </>
       )}
     </div>
+  )
+}
+
+/** No checked tasks yet: ways to help that don't wait for one. */
+function HelpNow() {
+  const { m } = useI18n()
+  const V = m.volunteer
+  const ways: { icon: IconName; color: string; title: string; sub: string; href?: string; onClick?: () => void }[] = [
+    { icon: 'camera', color: '#0a84ff', title: V.now.report, sub: V.now.reportSub, onClick: () => openQuickReport() },
+    { icon: 'bell', color: '#ff3b30', title: V.now.alerts, sub: V.now.alertsSub, href: href({ name: 'alerts' }) },
+    { icon: 'post', color: '#34c759', title: V.now.post, sub: V.now.postSub, href: href({ name: 'post' }) },
+    { icon: 'book', color: '#ff9500', title: V.now.guide, sub: V.now.guideSub, href: href({ name: 'guide', topic: null }) },
+  ]
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="rounded-[24px] bg-card p-6">
+        <h2 className="text-[22px] font-bold">{V.noneTitle}</h2>
+        <p className="mt-1 text-[16px] text-muted">{V.none}</p>
+      </div>
+      <h3 className="text-[19px] font-bold">{V.now.title}</h3>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {ways.map((w, i) => {
+          const inner = (
+            <>
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-white" style={{ background: w.color }}>
+                <Icon name={w.icon} size={24} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <b className="block text-[17px] leading-snug">{w.title}</b>
+                <span className="block text-[15px] leading-snug text-muted">{w.sub}</span>
+              </span>
+              <Icon name="forward" size={19} className="text-faint" />
+            </>
+          )
+          const cls = 'press lift rise flex items-center gap-4 rounded-[22px] bg-card p-4 text-left'
+          return w.href ? (
+            <a key={w.title} href={w.href} className={cls} style={{ '--i': i } as CSSProperties}>
+              {inner}
+            </a>
+          ) : (
+            <button key={w.title} onClick={w.onClick} className={cls} style={{ '--i': i } as CSSProperties}>
+              {inner}
+            </button>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
